@@ -4,7 +4,7 @@ database as its backend.  It is overkill.  It is grandiose overkill.
 
 Help output:
 
-Usage: %s [-h][-l|L] [-f database_file] [-d] [key]
+Usage: drop [-h] [-i] [-l] [-f database_file] [-d] [key]
 
 If only 'key' is specified, the matching data is printed to stdout.  If no
 options are given, a list of keys is printed.

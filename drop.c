@@ -260,7 +260,7 @@ void usage( void )
 {
     fprintf( stderr,
 
-"Usage: %s [-h][-l|L] [-f database_file] [-d] [key]\n\n"
+"Usage: %s [-h] [-i] [-l] [-f database_file] [-d] [key]\n\n"
 "If only 'key' is specified, the matching data is printed to stdout.  If no"
 "options are given, a list of keys is printed.\n\n"
 "\t-h       Print this message.\n"
