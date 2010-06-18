@@ -31,6 +31,7 @@ int main( int argc, char* argv[] )
     char c;
     char * file = NULL;
     char * key = NULL;
+    int gointeractive = 0;
     int delete = 0;
     int list = 0;
 
@@ -38,7 +39,7 @@ int main( int argc, char* argv[] )
 
     progname = argv[ 0 ];
 
-    while (( c = (char)getopt( argc, argv, "hlLf:d:" ) ) > 0 )
+    while (( c = (char)getopt( argc, argv, "hilf:d:" ) ) > 0 )
     {
         switch ( c )
         {
@@ -52,11 +53,11 @@ int main( int argc, char* argv[] )
             case 'h':
                 usage();
                 break;
-            case 'L':
-                list = 2;
-                break;
             case 'l':
                 list = 1;
+                break;
+            case 'i':
+                gointeractive = 1;
                 break;
             case '?':
             default:
@@ -77,14 +78,14 @@ int main( int argc, char* argv[] )
         exit( -1 );
     }
 
-    if ( list )
-        list_keys( db, list - 1 );
+    if ( gointeractive )
+        interactive( db );
     else if ( delete && key )
         delete_entry( db, key );
     else if ( key )
         print_entry( db, key );
     else
-        interactive( db );
+        list_keys( db, list );
 
     if ( tcbdbclose( db ) == false )
     {
@@ -257,15 +258,19 @@ void print_entry( TCBDB * db, const char * key )
 /* Print usage information. */
 void usage( void )
 {
-    fprintf( stderr, "Usage: %s [-h][-l|L] [-f database_file] [-d] [key]\n\n", progname );
-    fprintf( stderr, "If only 'key' is specified, the matching data is printed to stdout.\n\n" );
-    fprintf( stderr, "\t-h       Print this message.\n" );
-    fprintf( stderr, "\t-f file  Specifies an alternate database file.\n" );
-    fprintf( stderr, "\t-l       List the available keys.\n" );
-    fprintf( stderr, "\t-L       List the available keys and their values.\n" );
-    fprintf( stderr, "\t-d key   Delete the entry specified by 'key'.\n" );
-    fprintf( stderr, "\n\nThe latest '-l' or '-L' takes precedence.\n" );
-    fprintf( stderr, "The key is one word only.  If multiple words are entered,"
-        " only the first is used.\n" );
+    fprintf( stderr,
+
+"Usage: %s [-h][-l|L] [-f database_file] [-d] [key]\n\n"
+"If only 'key' is specified, the matching data is printed to stdout.  If no"
+"options are given, a list of keys is printed.\n\n"
+"\t-h       Print this message.\n"
+"\t-f file  Specifies an alternate database file.\n"
+"\t-i       Interactive entry.\n"
+"\t-l       List the available keys and their values.\n"
+"\t-d key   Delete the entry specified by 'key'.\n"
+"\n\nThe key is one word only.  If multiple words are entered,"
+" only the first is used.\n",
+
+        progname );
     exit( 0 );
 }
