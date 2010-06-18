@@ -1,0 +1,20 @@
+drop is a long-term copy and paste toy.  It can be used to store static items
+that are commonly piped to other programs.  drop uses a Tokyo Cabinet's B+ Tree
+database as its backend.  It is overkill.  It is grandiose overkill.
+
+Help output:
+
+Usage: %s [-h][-l|L] [-f database_file] [-d] [key]
+
+If only 'key' is specified, the matching data is printed to stdout.  If no
+options are given, a list of keys is printed.
+
+    -h       Print this message.
+    -f file  Specifies an alternate database file.
+    -i       Interactive entry.
+    -l       List the available keys and their values.
+    -d key   Delete the entry specified by 'key'.
+
+The key is one word only.  If multiple words are entered,
+ only the first is used.
+
