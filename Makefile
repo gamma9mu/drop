@@ -1,5 +1,5 @@
 INCL=-I/usr/include
-LIBS=-L/usr/local/lib -ltokyocabinet -lz -lbz2 -lrt -lpthread -lm -lc -lreadline
+LIBS=-lreadline `pkg-config --libs tokyocabinet`
 #OPTS=-Wall -Wextra
 OPTS=-Wall -Wextra -pedantic
 ds: drop.c
