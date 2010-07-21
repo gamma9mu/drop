@@ -113,7 +113,7 @@ void delete_entry( TCBDB * db, const char * key )
     {
         int err = tcbdbecode( db );
         fprintf( stderr, "Could not delete '%s': %s\n", key, tcbdberrmsg( err) );
-        exit( -1 );
+        return;
     }
 }
 
@@ -169,7 +169,7 @@ void interactive( TCBDB * db )
         *space = '\0';
 
     while ( ! value || ! *value )
-        value = readline( ": " );
+        value = readline( "   : " );
 
     if ( ! tcbdbputkeep2( db, key, value ) )
     {
@@ -178,7 +178,7 @@ void interactive( TCBDB * db )
         if ( ! resp )
         {
             fprintf( stderr, "Could not write: %s\n", tcbdberrmsg( err ) );
-            exit ( -1 );
+            return;
         }
         free( resp );
         resp = NULL;
@@ -190,7 +190,7 @@ void interactive( TCBDB * db )
             {
                 err = tcbdbecode( db );
                 fprintf( stderr, "Could not write: %s\n", tcbdberrmsg( err ) );
-                exit ( -1 );
+                return;
             }
         }
         free( resp );
@@ -209,7 +209,7 @@ void list_keys( TCBDB * db, int full )
     if ( ! tcbdbcurfirst( cur ) )
     {
         fprintf( stdout, "Database is empty.\n" );
-        exit( 0 );
+        return;
     }
 
     do
@@ -249,7 +249,7 @@ void print_entry( TCBDB * db, const char * key )
     if ( ! value )
     {
         fprintf( stderr, "'%s' does not exist.\n", key );
-        exit( 0 );
+        return;
     }
     fprintf( stdout, "%s\n", value );
     free( value );
@@ -261,7 +261,7 @@ void usage( void )
     fprintf( stderr,
 
 "Usage: %s [-h] [-i] [-l] [-f database_file] [-d] [key]\n\n"
-"If only 'key' is specified, the matching data is printed to stdout.  If no"
+"If only 'key' is specified, the matching data is printed to stdout.  If no\n"
 "options are given, a list of keys is printed.\n\n"
 "\t-h       Print this message.\n"
 "\t-f file  Specifies an alternate database file.\n"
