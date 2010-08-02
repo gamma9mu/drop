@@ -4,17 +4,17 @@ database as its backend.  It is overkill.  It is grandiose overkill.
 
 Help output:
 
-Usage: drop [-h] [-i] [-l] [-f database_file] [-d] [key]
+Usage: drop [-h] [-i] [-l] [-f database_file] [-(a|d)] [key]
 
 If only 'key' is specified, the matching data is printed to stdout.  If no
 options are given, a list of keys is printed.
 
-    -h       Print this message.
-    -f file  Specifies an alternate database file.
-    -i       Interactive entry.
-    -l       List the available keys and their values.
-    -d key   Delete the entry specified by 'key'.
+	-h        Print this message.
+	-a [key]  Add a value with 'key' as the key, otherwise same as -i.
+	-f file   Specifies an alternate database file.
+	-i        Interactive entry.
+	-l        List the available keys and their values.
+	-d key    Delete the entry specified by 'key'.
 
-The key is one word only.  If multiple words are entered,
- only the first is used.
 
+The key is one word only.  If multiple words are entered, only the first is used.

@@ -19,6 +19,7 @@
 
 char * progname;
 
+void add_entry( TCBDB * db, const char * key );
 void delete_entry( TCBDB * db, const char * key );
 char * get_db_location( void );
 void interactive( TCBDB * db );
@@ -31,6 +32,7 @@ int main( int argc, char* argv[] )
     char c;
     char * file = NULL;
     char * key = NULL;
+    int add = 0;
     int gointeractive = 0;
     int delete = 0;
     int list = 0;
@@ -39,10 +41,14 @@ int main( int argc, char* argv[] )
 
     progname = argv[ 0 ];
 
-    while (( c = (char)getopt( argc, argv, "hilf:d:" ) ) > 0 )
+    while (( c = (char)getopt( argc, argv, ":a:ihilf:d:" ) ) > 0 )
     {
         switch ( c )
         {
+            case 'a':
+                add = 1;
+                key = optarg;
+                break;
             case 'd':
                 key = optarg;
                 delete = 1;
@@ -59,6 +65,13 @@ int main( int argc, char* argv[] )
             case 'i':
                 gointeractive = 1;
                 break;
+            case ':':
+                if ( optopt == 'a' )
+                 {
+                     add = 1;
+                     continue;
+                 }
+                 /* Fall through: -a allows for no arg */
             case '?':
             default:
                 usage();
@@ -69,6 +82,12 @@ int main( int argc, char* argv[] )
     if ( argv[ optind ] )
         key = argv[ optind ];
 
+    if ( add && ! ( key && *key ) )
+    {
+        add = 0;
+        gointeractive = 1;
+    }
+
     if ( file == NULL ) file = get_db_location();
     db = tcbdbnew();
     if ( ! tcbdbopen( db, file, BDBOWRITER|BDBOCREAT|BDBOREADER ) )
@@ -78,7 +97,9 @@ int main( int argc, char* argv[] )
         exit( -1 );
     }
 
-    if ( gointeractive )
+    if ( add )
+        add_entry( db, key );
+    else if ( gointeractive )
         interactive( db );
     else if ( delete && key )
         delete_entry( db, key );
@@ -149,6 +170,47 @@ char * get_db_location()
 
     snprintf( location, len, "%s%s", dir, suffix );
     return location;
+}
+
+void add_entry( TCBDB * db, const char * key )
+{
+    char * value = NULL;
+    char * space = NULL;
+
+    /* The key should only be one word... */
+    space = strchr( key, ' ' );
+    if ( space )
+        *space = '\0';
+
+    while ( ! value || ! *value )
+        value = readline( "   : " );
+
+    if ( ! tcbdbputkeep2( db, key, value ) )
+    {
+        int err = tcbdbecode( db );
+        char * resp = tcbdbget2( db, key );
+        if ( ! resp )
+        {
+            fprintf( stderr, "Could not write: %s\n", tcbdberrmsg( err ) );
+            return;
+        }
+        free( resp );
+        resp = NULL;
+
+        resp = readline( "Overwrite? [y/N] " );
+        if ( resp && ( resp[ 0 ] == 'y' || resp[ 0 ] == 'Y' ))
+        {
+            if ( !tcbdbput2( db, key, value ) )
+            {
+                err = tcbdbecode( db );
+                fprintf( stderr, "Could not write: %s\n", tcbdberrmsg( err ) );
+                return;
+            }
+        }
+        free( resp );
+    }
+
+    free( value );
 }
 
 /* Interactively enter a key into the DB. */
@@ -263,11 +325,12 @@ void usage( void )
 "Usage: %s [-h] [-i] [-l] [-f database_file] [-d] [key]\n\n"
 "If only 'key' is specified, the matching data is printed to stdout.  If no\n"
 "options are given, a list of keys is printed.\n\n"
-"\t-h       Print this message.\n"
-"\t-f file  Specifies an alternate database file.\n"
-"\t-i       Interactive entry.\n"
-"\t-l       List the available keys and their values.\n"
-"\t-d key   Delete the entry specified by 'key'.\n"
+"\t-h        Print this message.\n"
+"\t-a [key]  Add a value with 'key' as the key, otherwise same as -i.\n"
+"\t-f file   Specifies an alternate database file.\n"
+"\t-i        Interactive entry.\n"
+"\t-l        List the available keys and their values.\n"
+"\t-d key    Delete the entry specified by 'key'.\n"
 "\n\nThe key is one word only.  If multiple words are entered,"
 " only the first is used.\n",
 
