@@ -40,7 +40,7 @@ int main( int argc, char* argv[] )
 
     progname = argv[ 0 ];
 
-    while (( c = (char)getopt( argc, argv, ":a:ihilf:d:" ) ) > 0 )
+    while (( c = (char)getopt( argc, argv, ":a:hilf:d:" ) ) > 0 )
     {
         switch ( c )
         {
@@ -60,9 +60,6 @@ int main( int argc, char* argv[] )
                 break;
             case 'l':
                 op = ( op == LIST || op == FULL_LIST ) ? FULL_LIST : LIST;
-                break;
-            case 'i':
-                op = INTERACTIVE;
                 break;
             case ':':
                 if ( optopt == 'a' )
@@ -329,13 +326,12 @@ void usage( void )
 {
     fprintf( stderr,
 
-"Usage: %s [-h] [-i] [-l] [-f database_file] [-d] [key]\n\n"
+"Usage: %s [-h] [-l] [-f database_file] [-d] [key]\n\n"
 "If only 'key' is specified, the matching data is printed to stdout.  If no\n"
 "options are given, a list of keys is printed.\n\n"
 "\t-h        Print this message.\n"
-"\t-a [key]  Add a value with 'key' as the key, otherwise same as -i.\n"
+"\t-a [key]  Add a value with 'key' as the key.\n"
 "\t-f file   Specifies an alternate database file.\n"
-"\t-i        Interactive entry.\n"
 "\t-l        List the available keys and their values.\n"
 "\t-d key    Delete the entry specified by 'key'.\n"
 "\n\nThe key is one word only.  If multiple words are entered,"
