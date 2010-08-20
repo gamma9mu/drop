@@ -27,15 +27,14 @@ void list_keys( TCBDB * db, int full );
 void print_entry( TCBDB * db, const char * key );
 void usage( void );
 
+enum Operation { ADD, DELETE, LIST, FULL_LIST, INTERACTIVE, PRINT };
+
 int main( int argc, char* argv[] )
 {
     char c;
     char * file = NULL;
     char * key = NULL;
-    int add = 0;
-    int gointeractive = 0;
-    int delete = 0;
-    int list = 0;
+    enum Operation op = PRINT;
 
     TCBDB * db;
 
@@ -46,12 +45,12 @@ int main( int argc, char* argv[] )
         switch ( c )
         {
             case 'a':
-                add = 1;
+                op = ADD;
                 key = optarg;
                 break;
             case 'd':
+                op = DELETE;
                 key = optarg;
-                delete = 1;
                 break;
             case 'f':
                 file = optarg;
@@ -60,15 +59,15 @@ int main( int argc, char* argv[] )
                 usage();
                 break;
             case 'l':
-                list = 1;
+                op = ( op == LIST || op == FULL_LIST ) ? FULL_LIST : LIST;
                 break;
             case 'i':
-                gointeractive = 1;
+                op = INTERACTIVE;
                 break;
             case ':':
                 if ( optopt == 'a' )
                  {
-                     add = 1;
+                     op = ADD;
                      continue;
                  }
                  /* Fall through: -a allows for no arg */
@@ -79,14 +78,11 @@ int main( int argc, char* argv[] )
         }
     }
 
-    if ( argv[ optind ] )
+    if ( !key && argv[ optind ] )
         key = argv[ optind ];
 
-    if ( add && ! ( key && *key ) )
-    {
-        add = 0;
-        gointeractive = 1;
-    }
+    if ( op == ADD && ! ( key && *key ) )
+        op = INTERACTIVE;
 
     if ( file == NULL ) file = get_db_location();
     db = tcbdbnew();
@@ -97,16 +93,27 @@ int main( int argc, char* argv[] )
         exit( -1 );
     }
 
-    if ( add )
-        add_entry( db, key );
-    else if ( gointeractive )
-        interactive( db );
-    else if ( delete && key )
-        delete_entry( db, key );
-    else if ( key )
-        print_entry( db, key );
-    else
-        list_keys( db, list );
+    switch ( op )
+    {
+        case ADD:
+            add_entry( db, key );
+            break;
+        case INTERACTIVE:
+            interactive( db );
+            break;
+        case DELETE:
+            delete_entry( db, key );
+            break;
+        case PRINT:
+            print_entry( db, key );
+            break;
+        case LIST:
+            list_keys( db, 0 );
+            break;
+        case FULL_LIST:
+            list_keys( db, 1 );
+            break;
+    }
 
     if ( tcbdbclose( db ) == false )
     {
