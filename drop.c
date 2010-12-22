@@ -3,6 +3,8 @@
  * Distributed under 3-clause BSD license.  See LICENSE file for the details.
  */
 
+#define _XOPEN_SOURCE
+
 #include <tcutil.h>
 #include <tcbdb.h>
 
@@ -27,14 +29,21 @@ void list_keys( TCBDB * db, int full );
 void print_entry( TCBDB * db, const char * key );
 void usage( void );
 
-enum Operation { ADD, DELETE, LIST, FULL_LIST, INTERACTIVE, PRINT };
+static void init_x_win(void);
+static void final_x_win(void);
+char * read_X_selection( void );
+void set_X_selection( char * text );
+static void xdie(char *message);
+
+enum Operation { ADD, DELETE, LIST, FULL_LIST, INTERACTIVE, PRINT } op = PRINT;
+enum TransferType { CONSOLE, READLINE, XSELECTION_PRIMARY,
+    XSELECTION_CLIPBOARD } xfertype = READLINE;
 
 int main( int argc, char* argv[] )
 {
     char c;
     char * file = NULL;
     char * key = NULL;
-    enum Operation op = PRINT;
 
     TCBDB * db;
 
@@ -57,6 +66,12 @@ int main( int argc, char* argv[] )
                 break;
             case 'h':
                 usage();
+                break;
+            case 'i':
+                xfertype = XSELECTION_PRIMARY;
+                break;
+            case 'I':
+                xfertype = XSELECTION_CLIPBOARD;
                 break;
             case 'l':
                 op = ( op == LIST || op == FULL_LIST ) ? FULL_LIST : LIST;
@@ -325,7 +340,6 @@ void print_entry( TCBDB * db, const char * key )
 void usage( void )
 {
     fprintf( stderr,
-
 "Usage: %s [-h] [-l] [-f database_file] [-d] [key]\n\n"
 "If only 'key' is specified, the matching data is printed to stdout.  If no\n"
 "options are given, a list of keys is printed.\n\n"
@@ -333,10 +347,144 @@ void usage( void )
 "\t-a [key]  Add a value with 'key' as the key.\n"
 "\t-f file   Specifies an alternate database file.\n"
 "\t-l        List the available keys and their values.\n"
-"\t-d key    Delete the entry specified by 'key'.\n"
-"\n\nThe key is one word only.  If multiple words are entered,"
-" only the first is used.\n",
+"\t-d key    Delete the entry specified by 'key'.\n\n",
+        progname);
 
-        progname );
+    fprintf(stderr,
+"Transfer types:\n"
+"\t-i        Transfer the entry using X PRIMARY selection.\n"
+"\t-I        Transfer the entry using X CLIPBOARD selection.\n"
+"\n\nThe key is one word only.  If multiple words are entered,"
+" only the first is used as the key.\n");
+
     exit( 0 );
+}
+
+#include <locale.h>
+#include <X11/X.h>
+#include <X11/Xlib.h>
+#include <X11/Xatom.h>
+
+static Display *d = NULL;
+static Window w = 0;
+static Atom target_atom;
+
+/* Setup an X windows connection and the CLIPBOARD XAtom.
+ */
+static void
+init_x_win(void)
+{
+    setlocale(LC_CTYPE, "");
+    d = XOpenDisplay(NULL);
+    if (d == NULL)
+        xdie("Could not open display\n");
+
+    if (xfertype == XSELECTION_PRIMARY)
+        target_atom = XA_PRIMARY;
+    else if (xfertype == XSELECTION_CLIPBOARD)
+        target_atom = XInternAtom(d, "CLIPBOARD", False);
+    else
+        xdie("Unknown selection atom.\n");
+
+    w = XCreateSimpleWindow(d, RootWindow(d, DefaultScreen(d)), 0, 0, 1, 1, 0,
+        BlackPixel(d, DefaultScreen(d)), WhitePixel(d, DefaultScreen(d)));
+    if (w == BadAlloc || w == BadMatch || w == BadValue || w == BadWindow)
+    {
+        w = 0;
+        xdie("XCreateSimpleWindow.\n");
+    }
+}
+
+/* Cleanup the X windows connection.
+ */
+static void
+final_x_win(void)
+{
+    if (w) XDestroyWindow(d, w);
+    if (d != NULL) XCloseDisplay(d);
+    exit(EXIT_SUCCESS);
+}
+
+char * read_X_selection( void )
+{
+    return "";
+}
+
+/* Offer up the contents of the current drop for an X selection
+ */
+void set_X_selection( char * text )
+{
+    XEvent e;
+    int res;
+    init_x_win();
+
+    // Get the current X timestamp
+    XSelectInput(d, w, PropertyChangeMask);
+    res = XChangeProperty(d, w, target_atom, XA_STRING, 8, PropModeAppend, 0, 0);
+    if (res == BadAlloc || res == BadAtom || res == BadMatch || res == BadValue
+        || res == BadWindow) xdie("Local XChangeProperty.\n");
+    do { XNextEvent(d, &e); } while (e.type != PropertyNotify);
+    Time t = e.xproperty.time;
+
+    // Grab selection ownership
+    res = XSetSelectionOwner(d, target_atom, w, t);
+    if (res == BadAtom || res == BadWindow || w != XGetSelectionOwner(d, target_atom))
+        xdie("Could not control X selection.\n");
+
+    // Process events
+    for(;;) {
+        XNextEvent(d, &e);
+        if (e.type == SelectionClear) {
+            if (e.xselectionclear.time > t) // Lost selection ownership
+                final_x_win();
+            else
+                continue;
+        }
+        if (e.type != SelectionRequest) continue; // Not a selection request
+
+        XSelectionRequestEvent *req =
+            (XSelectionRequestEvent*) &e.xselectionrequest;
+
+        // Create respeonse event
+        XEvent resp;
+        resp.xselection.type = SelectionNotify;
+        resp.xselection.requestor = req->requestor;
+        resp.xselection.selection = req->selection;
+        resp.xselection.target = req->target;
+        resp.xselection.time = req->time;
+        if (req->property == None)
+            resp.xselection.property = req->target;
+        else
+            resp.xselection.property = req->property;
+
+        // Send the selection buffer data
+        res = XChangeProperty(d, resp.xselection.requestor,
+            resp.xselection.property, resp.xselection.target, 8,
+            PropModeReplace, (unsigned char*)text, strlen(text) + 1);
+        if (res == BadAlloc || res == BadAtom || res == BadMatch || res == BadValue
+            || res == BadWindow)
+        {
+            resp.xselection.property = None;
+            fprintf(stderr, "Foreign XChangeProperty.\n");
+        }
+
+        // Send notice to the requesting application
+        res = XSendEvent(d, resp.xselection.requestor, True, 0L, &resp);
+        if (res == BadValue || res == BadWindow)
+            xdie("XSendEvent failed.\n");
+
+        final_x_win();
+    }
+}
+
+/* Prints an optional error message, cleans up X connection and exits with
+ * failure
+ */
+static void
+xdie(char *message)
+{
+    if (message && *message) fputs(message, stderr);
+    if (w) XDestroyWindow(d, w);
+    if (d != NULL) XCloseDisplay(d);
+    exit(EXIT_FAILURE);
 }

@@ -1,7 +1,7 @@
 CFLAGS+=-I/usr/include
 CFLAGS+=-Wall -Wextra -pedantic
-CFLAGS+=-std=c99
-LDFLAGS=-lreadline `pkg-config --libs tokyocabinet`
+CFLAGS+=-std=c99 `pkg-config --cflags x11`
+LDFLAGS=-lreadline `pkg-config --libs tokyocabinet x11`
 
 .PHONY: all clean
 .SUFFIXES: .c
