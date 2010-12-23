@@ -32,8 +32,8 @@ void usage( void );
 
 static void init_x_win(void);
 static void final_x_win(void);
-char * read_X_selection( void );
-void set_X_selection( char * text );
+static char * read_X_selection( void );
+static void set_X_selection( char * text );
 static void xdie(char *message);
 
 enum Operation { ADD, DELETE, LIST, FULL_LIST, INTERACTIVE, PRINT } op = PRINT;
@@ -366,9 +366,13 @@ void usage( void )
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
 
+static Time get_X_timestamp(void);
+
 static Display *d = NULL;
 static Window w = 0;
 static Atom selection_atom;
+static Atom dest_atom;
+static Atom XA_UTF8_STRING;
 
 /* Setup an X windows connection and the CLIPBOARD XAtom.
  */
@@ -387,6 +391,9 @@ init_x_win(void)
     else
         xdie("Unknown selection atom.\n");
 
+    dest_atom = XInternAtom(d, "DROP_CLIP", False);
+    XA_UTF8_STRING = XInternAtom(d, "UTF8_STRING", False);
+ 
     w = XCreateSimpleWindow(d, RootWindow(d, DefaultScreen(d)), 0, 0, 1, 1, 0,
         BlackPixel(d, DefaultScreen(d)), WhitePixel(d, DefaultScreen(d)));
     if (w == BadAlloc || w == BadMatch || w == BadValue || w == BadWindow)
@@ -406,33 +413,49 @@ final_x_win(void)
     exit(EXIT_SUCCESS);
 }
 
-char * read_X_selection( void )
+/* Get the current X timestamp
+ */
+static Time
+get_X_timestamp(void)
 {
-    char *data = NULL;
-    XEvent e;
     int res;
-    init_x_win();
+    XEvent e;
 
-    Atom dest_atom = XInternAtom(d, "DROP_CLIP", False);
-    Atom XA_UTF8_STRING = XInternAtom(d, "UTF8_STRING", False);
-
-    // Get the current X timestamp
     XSelectInput(d, w, PropertyChangeMask);
     res = XChangeProperty(d, w, selection_atom, XA_STRING, 8, PropModeAppend, 0, 0);
     if (res == BadAlloc || res == BadAtom || res == BadMatch || res == BadValue
         || res == BadWindow) xdie("Local XChangeProperty.\n");
+
     do { XNextEvent(d, &e); } while (e.type != PropertyNotify);
-    Time t = e.xproperty.time;
 
+    return e.xproperty.time;
+}
+
+/* Read the current X selection in and return it.
+ * On an X error, a message will print and the program will exit. With other
+ * problems, NULL is returned.  The string returned will be null-terminated.
+ */
+static char *
+read_X_selection( void )
+{
+    char *data = NULL;
+    XEvent e;
+    init_x_win();
+    Time t = get_X_timestamp();
+
+    // Request the data and wait for notification
     XConvertSelection(d, selection_atom, XA_UTF8_STRING, dest_atom, w, t);
-
     for(;;) {
         XNextEvent(d, &e);
         if (e.type == SelectionNotify) break;
     }
     if (e.xselection.property == None)
+    {
         final_x_win();
+        return NULL;
+    }
 
+    // Pull out the data
     Atom type;
     int fmt;
     unsigned long num, after;
@@ -441,8 +464,13 @@ char * read_X_selection( void )
         (unsigned char**) &data);
     if (ret != Success) xdie("XGetWindowProperty failed.\n");
     if (type == None) xdie("Property not set after paste notification");
-    if (fmt != 8) xdie("Invalid format size received\n;");
+    if (fmt != 8)
+    {
+        XFree(data);
+        xdie("Invalid format size received\n;");
+    }
 
+    // Cleanup
     XDeleteProperty(d, w, dest_atom);
     char *str = strdup(data);
     XFree(data);
@@ -452,19 +480,14 @@ char * read_X_selection( void )
 
 /* Offer up the contents of the current drop for an X selection
  */
-void set_X_selection( char * text )
+static void
+set_X_selection( char * text )
 {
     XEvent e;
     int res;
     init_x_win();
 
-    // Get the current X timestamp
-    XSelectInput(d, w, PropertyChangeMask);
-    res = XChangeProperty(d, w, selection_atom, XA_STRING, 8, PropModeAppend, 0, 0);
-    if (res == BadAlloc || res == BadAtom || res == BadMatch || res == BadValue
-        || res == BadWindow) xdie("Local XChangeProperty.\n");
-    do { XNextEvent(d, &e); } while (e.type != PropertyNotify);
-    Time t = e.xproperty.time;
+    Time t = get_X_timestamp();
 
     // Grab selection ownership
     res = XSetSelectionOwner(d, selection_atom, w, t);
