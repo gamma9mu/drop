@@ -20,15 +20,15 @@
 
 #include <readline/readline.h>
 
-char * progname;
+static char * progname;
 
-void add_entry( TCBDB * db, const char * key );
-void delete_entry( TCBDB * db, const char * key );
-char * get_db_location( void );
-void interactive( TCBDB * db );
-void list_keys( TCBDB * db, int full );
-void print_entry( TCBDB * db, const char * key );
-void usage( void );
+static void add_entry( TCBDB * db, const char * key );
+static void delete_entry( TCBDB * db, const char * key );
+static char * get_db_location( void );
+static void interactive( TCBDB * db );
+static void list_keys( TCBDB * db, int full );
+static void print_entry( TCBDB * db, const char * key );
+static void usage( void );
 
 static void init_x_win(void);
 static void final_x_win(void);
@@ -40,7 +40,8 @@ enum Operation { ADD, DELETE, LIST, FULL_LIST, INTERACTIVE, PRINT } op = PRINT;
 enum TransferType { CONSOLE, READLINE, XSELECTION_PRIMARY,
     XSELECTION_CLIPBOARD } xfertype = READLINE;
 
-int main( int argc, char* argv[] )
+int
+main( int argc, char* argv[] )
 {
     char c;
     char * file = NULL;
@@ -143,7 +144,8 @@ int main( int argc, char* argv[] )
 #endif
 
 /* Delete the entry specified by key. */
-void delete_entry( TCBDB * db, const char * key )
+static void
+delete_entry( TCBDB * db, const char * key )
 {
     /* The key should only be one word... */
     char * space = strchr( key, ' ' );
@@ -161,7 +163,8 @@ void delete_entry( TCBDB * db, const char * key )
 /* Create a string for the DB location and fill it. The caller is responsible
  * for freeing the string.
  */
-char * get_db_location()
+static char *
+get_db_location()
 {
     char * location;
     char * suffix = "/drop.tcb";
@@ -192,7 +195,8 @@ char * get_db_location()
     return location;
 }
 
-void add_entry( TCBDB * db, const char * key )
+static void
+add_entry( TCBDB * db, const char * key )
 {
     char * value = NULL;
     char * space = NULL;
@@ -234,7 +238,8 @@ void add_entry( TCBDB * db, const char * key )
 }
 
 /* Interactively enter a key into the DB. */
-void interactive( TCBDB * db )
+static void
+interactive( TCBDB * db )
 {
     char * key = NULL;
     char * value = NULL;
@@ -283,7 +288,8 @@ void interactive( TCBDB * db )
 }
 
 /* List the keys of the current entries. */
-void list_keys( TCBDB * db, int full )
+static void
+list_keys( TCBDB * db, int full )
 {
     char * key = NULL;
     char * value = NULL;
@@ -318,8 +324,10 @@ void list_keys( TCBDB * db, int full )
     } while ( tcbdbcurnext( cur ) );
     tcbdbcurdel( cur );
 }
+
 /* Print the entry specified by key to stdout. */
-void print_entry( TCBDB * db, const char * key )
+static void
+print_entry( TCBDB * db, const char * key )
 {
     /* The key should only be one word... */
     char * space = strchr( key, ' ' );
@@ -338,7 +346,8 @@ void print_entry( TCBDB * db, const char * key )
 }
 
 /* Print usage information. */
-void usage( void )
+static void
+usage( void )
 {
     fprintf( stderr,
 "Usage: %s [-h] [-l] [-f database_file] [-d] [key]\n\n"
@@ -443,7 +452,7 @@ read_X_selection( void )
     init_x_win();
     Time t = get_X_timestamp();
 
-    // Request the data and wait for notification
+    /* Request the data and wait for notification */
     XConvertSelection(d, selection_atom, XA_UTF8_STRING, dest_atom, w, t);
     for(;;) {
         XNextEvent(d, &e);
@@ -455,7 +464,7 @@ read_X_selection( void )
         return NULL;
     }
 
-    // Pull out the data
+    /* Pull out the data */
     Atom type;
     int fmt;
     unsigned long num, after;
@@ -470,7 +479,7 @@ read_X_selection( void )
         xdie("Invalid format size received\n;");
     }
 
-    // Cleanup
+    /* Cleanup */
     XDeleteProperty(d, w, dest_atom);
     char *str = strdup(data);
     XFree(data);
@@ -489,26 +498,26 @@ set_X_selection( char * text )
 
     Time t = get_X_timestamp();
 
-    // Grab selection ownership
+    /* Grab selection ownership */
     res = XSetSelectionOwner(d, selection_atom, w, t);
     if (res == BadAtom || res == BadWindow || w != XGetSelectionOwner(d, selection_atom))
         xdie("Could not control X selection.\n");
 
-    // Process events
+    /* Process events */
     for(;;) {
         XNextEvent(d, &e);
         if (e.type == SelectionClear) {
-            if (e.xselectionclear.time > t) // Lost selection ownership
+            if (e.xselectionclear.time > t) /* Lost selection ownership */
                 final_x_win();
             else
                 continue;
         }
-        if (e.type != SelectionRequest) continue; // Not a selection request
+        if (e.type != SelectionRequest) continue; /* Not a selection request */
 
         XSelectionRequestEvent *req =
             (XSelectionRequestEvent*) &e.xselectionrequest;
 
-        // Create respeonse event
+        /* Create respeonse event */
         XEvent resp;
         resp.xselection.type = SelectionNotify;
         resp.xselection.requestor = req->requestor;
@@ -520,7 +529,7 @@ set_X_selection( char * text )
         else
             resp.xselection.property = req->property;
 
-        // Send the selection buffer data
+        /* Send the selection buffer data */
         res = XChangeProperty(d, resp.xselection.requestor,
             resp.xselection.property, resp.xselection.target, 8,
             PropModeReplace, (unsigned char*)text, strlen(text) + 1);
@@ -531,7 +540,7 @@ set_X_selection( char * text )
             fprintf(stderr, "Foreign XChangeProperty.\n");
         }
 
-        // Send notice to the requesting application
+        /* Send notice to the requesting application */
         res = XSendEvent(d, resp.xselection.requestor, True, 0L, &resp);
         if (res == BadValue || res == BadWindow)
             xdie("XSendEvent failed.\n");
