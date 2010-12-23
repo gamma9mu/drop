@@ -20,7 +20,12 @@
 
 #include <readline/readline.h>
 
-static char *progname;
+#ifdef X11
+#include <locale.h>
+#include <X11/X.h>
+#include <X11/Xlib.h>
+#include <X11/Xatom.h>
+#endif
 
 static void add_entry(TCBDB *db, const char *key);
 static void delete_entry(TCBDB *db, const char *key);
@@ -30,15 +35,28 @@ static void list_keys(TCBDB *db, int full);
 static void print_entry(TCBDB *db, const char *key);
 static void usage(void);
 
+#ifdef X11
 static void init_x_win(void);
 static void final_x_win(void);
 static char *read_X_selection(void);
 static void set_X_selection(char *text);
 static void xdie(char *message);
+static Time get_X_timestamp(void);
+
+static Display *d = NULL;
+static Window w = 0;
+static Atom selection_atom;
+static Atom dest_atom;
+static Atom XA_UTF8_STRING;
+#endif
+
+static char *progname;
 
 enum Operation { ADD, DELETE, LIST, FULL_LIST, INTERACTIVE, PRINT } op = PRINT;
-enum TransferType { CONSOLE, READLINE, XSELECTION_PRIMARY,
-                    XSELECTION_CLIPBOARD
+enum TransferType { CONSOLE, READLINE,
+#ifdef X11
+                    XSELECTION_PRIMARY, XSELECTION_CLIPBOARD
+#endif
                   } xfertype = READLINE;
 
 int
@@ -70,12 +88,14 @@ main(int argc, char *argv[])
             case 'h':
                 usage();
                 break;
+#ifdef X11
             case 'i':
                 xfertype = XSELECTION_PRIMARY;
                 break;
             case 'I':
                 xfertype = XSELECTION_CLIPBOARD;
                 break;
+#endif
             case 'l':
                 op = (op == LIST || op == FULL_LIST) ? FULL_LIST : LIST;
                 break;
@@ -375,18 +395,7 @@ usage(void)
     exit(0);
 }
 
-#include <locale.h>
-#include <X11/X.h>
-#include <X11/Xlib.h>
-#include <X11/Xatom.h>
-
-static Time get_X_timestamp(void);
-
-static Display *d = NULL;
-static Window w = 0;
-static Atom selection_atom;
-static Atom dest_atom;
-static Atom XA_UTF8_STRING;
+#ifdef X11
 
 /* Setup an X windows connection and the CLIPBOARD XAtom.
  */
@@ -571,3 +580,5 @@ xdie(char *message)
     if (d != NULL) XCloseDisplay(d);
     exit(EXIT_FAILURE);
 }
+
+#endif

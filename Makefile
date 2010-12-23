@@ -1,6 +1,6 @@
 CFLAGS+=-I/usr/include
 CFLAGS+=-Wall -Wextra -pedantic
-CFLAGS+=-std=c99 `pkg-config --cflags x11`
+CFLAGS+=-std=c99 `pkg-config --cflags x11` -DX11
 LDFLAGS=-lreadline `pkg-config --libs tokyocabinet x11`
 
 .PHONY: all clean
@@ -8,7 +8,6 @@ LDFLAGS=-lreadline `pkg-config --libs tokyocabinet x11`
 
 all: drop
 	
-
 drop: drop.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
 
