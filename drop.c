@@ -20,40 +20,41 @@
 
 #include <readline/readline.h>
 
-static char * progname;
+static char *progname;
 
-static void add_entry( TCBDB * db, const char * key );
-static void delete_entry( TCBDB * db, const char * key );
-static char * get_db_location( void );
-static void interactive( TCBDB * db );
-static void list_keys( TCBDB * db, int full );
-static void print_entry( TCBDB * db, const char * key );
-static void usage( void );
+static void add_entry(TCBDB *db, const char *key);
+static void delete_entry(TCBDB *db, const char *key);
+static char *get_db_location(void);
+static void interactive(TCBDB *db);
+static void list_keys(TCBDB *db, int full);
+static void print_entry(TCBDB *db, const char *key);
+static void usage(void);
 
 static void init_x_win(void);
 static void final_x_win(void);
-static char * read_X_selection( void );
-static void set_X_selection( char * text );
+static char *read_X_selection(void);
+static void set_X_selection(char *text);
 static void xdie(char *message);
 
 enum Operation { ADD, DELETE, LIST, FULL_LIST, INTERACTIVE, PRINT } op = PRINT;
 enum TransferType { CONSOLE, READLINE, XSELECTION_PRIMARY,
-    XSELECTION_CLIPBOARD } xfertype = READLINE;
+                    XSELECTION_CLIPBOARD
+                  } xfertype = READLINE;
 
 int
-main( int argc, char* argv[] )
+main(int argc, char *argv[])
 {
     char c;
-    char * file = NULL;
-    char * key = NULL;
+    char *file = NULL;
+    char *key = NULL;
 
-    TCBDB * db;
+    TCBDB *db;
 
     progname = argv[ 0 ];
 
-    while (( c = (char)getopt( argc, argv, ":a:hilf:d:" ) ) > 0 )
+    while ((c = (char)getopt(argc, argv, ":a:hilf:d:")) > 0)
     {
-        switch ( c )
+        switch (c)
         {
             case 'a':
                 op = ADD;
@@ -76,15 +77,15 @@ main( int argc, char* argv[] )
                 xfertype = XSELECTION_CLIPBOARD;
                 break;
             case 'l':
-                op = ( op == LIST || op == FULL_LIST ) ? FULL_LIST : LIST;
+                op = (op == LIST || op == FULL_LIST) ? FULL_LIST : LIST;
                 break;
             case ':':
-                if ( optopt == 'a' )
-                 {
-                     op = ADD;
-                     continue;
-                 }
-                 /* Fall through: -a allows for no arg */
+                if (optopt == 'a')
+                {
+                    op = ADD;
+                    continue;
+                }
+                /* Fall through: -a allows for no arg */
             case '?':
             default:
                 usage();
@@ -92,49 +93,49 @@ main( int argc, char* argv[] )
         }
     }
 
-    if ( !key && argv[ optind ] )
+    if (!key && argv[ optind ])
         key = argv[ optind ];
 
-    if ( op == ADD && ! ( key && *key ) )
+    if (op == ADD && !(key && *key))
         op = INTERACTIVE;
 
-    if ( file == NULL ) file = get_db_location();
+    if (file == NULL) file = get_db_location();
     db = tcbdbnew();
-    if ( ! tcbdbopen( db, file, BDBOWRITER|BDBOCREAT|BDBOREADER ) )
+    if (! tcbdbopen(db, file, BDBOWRITER | BDBOCREAT | BDBOREADER))
     {
-        int err = tcbdbecode( db );
-        fprintf( stderr, "Could not open database: %s\n:%s\n", file, tcbdberrmsg( err ) );
-        exit( -1 );
+        int err = tcbdbecode(db);
+        fprintf(stderr, "Could not open database: %s\n:%s\n", file, tcbdberrmsg(err));
+        exit(-1);
     }
 
-    switch ( op )
+    switch (op)
     {
         case ADD:
-            add_entry( db, key );
+            add_entry(db, key);
             break;
         case INTERACTIVE:
-            interactive( db );
+            interactive(db);
             break;
         case DELETE:
-            delete_entry( db, key );
+            delete_entry(db, key);
             break;
         case PRINT:
-            print_entry( db, key );
+            print_entry(db, key);
             break;
         case LIST:
-            list_keys( db, 0 );
+            list_keys(db, 0);
             break;
         case FULL_LIST:
-            list_keys( db, 1 );
+            list_keys(db, 1);
             break;
     }
 
-    if ( tcbdbclose( db ) == false )
+    if (tcbdbclose(db) == false)
     {
-        fprintf( stderr, "Error closing database: %s\n", file );
-        fprintf( stderr, "Continuing, since I'm out of ideas...\n" );
+        fprintf(stderr, "Error closing database: %s\n", file);
+        fprintf(stderr, "Continuing, since I'm out of ideas...\n");
     }
-    tcbdbdel( db );
+    tcbdbdel(db);
     return 0;
 }
 
@@ -145,17 +146,17 @@ main( int argc, char* argv[] )
 
 /* Delete the entry specified by key. */
 static void
-delete_entry( TCBDB * db, const char * key )
+delete_entry(TCBDB *db, const char *key)
 {
     /* The key should only be one word... */
-    char * space = strchr( key, ' ' );
-    if ( space )
+    char *space = strchr(key, ' ');
+    if (space)
         *space = '\0';
 
-    if ( !tcbdbout2( db, key ) )
+    if (!tcbdbout2(db, key))
     {
-        int err = tcbdbecode( db );
-        fprintf( stderr, "Could not delete '%s': %s\n", key, tcbdberrmsg( err) );
+        int err = tcbdbecode(db);
+        fprintf(stderr, "Could not delete '%s': %s\n", key, tcbdberrmsg(err));
         return;
     }
 }
@@ -166,208 +167,212 @@ delete_entry( TCBDB * db, const char * key )
 static char *
 get_db_location()
 {
-    char * location;
-    char * suffix = "/drop.tcb";
-    char * dir = getenv( "XDG_DATA_HOME" );
+    char *location;
+    char *suffix = "/drop.tcb";
+    char *dir = getenv("XDG_DATA_HOME");
     size_t len = 0;
-    if ( dir == NULL )
+    if (dir == NULL)
     {
-        dir = getenv( "HOME" );
+        dir = getenv("HOME");
         suffix = "/.drop.tcb";
     }
 
-    len = strlen( suffix ) + strlen( dir );
-    if ( len > _POSIX_PATH_MAX )
+    len = strlen(suffix) + strlen(dir);
+    if (len > _POSIX_PATH_MAX)
     {
-        fprintf( stderr, "get_db_location: path name is impossible.\n" );
-        exit( -1 );
+        fprintf(stderr, "get_db_location: path name is impossible.\n");
+        exit(-1);
     }
 
     ++len; /* pad for a null */
-    location = (char *) malloc( len );
-    if ( location == NULL )
+    location = (char *) malloc(len);
+    if (location == NULL)
     {
-        fprintf( stderr, "get_db_location: malloc failed.\n" );
-        exit( -1 );
+        fprintf(stderr, "get_db_location: malloc failed.\n");
+        exit(-1);
     }
 
-    snprintf( location, len, "%s%s", dir, suffix );
+    snprintf(location, len, "%s%s", dir, suffix);
     return location;
 }
 
 static void
-add_entry( TCBDB * db, const char * key )
+add_entry(TCBDB *db, const char *key)
 {
-    char * value = NULL;
-    char * space = NULL;
+    char *value = NULL;
+    char *space = NULL;
 
     /* The key should only be one word... */
-    space = strchr( key, ' ' );
-    if ( space )
+    space = strchr(key, ' ');
+    if (space)
         *space = '\0';
 
-    while ( ! value || ! *value )
-        value = readline( "   : " );
+    while (! value || ! *value)
+        value = readline("   : ");
 
-    if ( ! tcbdbputkeep2( db, key, value ) )
+    if (! tcbdbputkeep2(db, key, value))
     {
-        int err = tcbdbecode( db );
-        char * resp = tcbdbget2( db, key );
-        if ( ! resp )
+        int err = tcbdbecode(db);
+        char *resp = tcbdbget2(db, key);
+        if (! resp)
         {
-            fprintf( stderr, "Could not write: %s\n", tcbdberrmsg( err ) );
+            fprintf(stderr, "Could not write: %s\n", tcbdberrmsg(err));
             return;
         }
-        free( resp );
+        free(resp);
         resp = NULL;
 
-        resp = readline( "Overwrite? [y/N] " );
-        if ( resp && ( resp[ 0 ] == 'y' || resp[ 0 ] == 'Y' ))
+        resp = readline("Overwrite? [y/N] ");
+        if (resp && (resp[ 0 ] == 'y' || resp[ 0 ] == 'Y'))
         {
-            if ( !tcbdbput2( db, key, value ) )
+            if (!tcbdbput2(db, key, value))
             {
-                err = tcbdbecode( db );
-                fprintf( stderr, "Could not write: %s\n", tcbdberrmsg( err ) );
+                err = tcbdbecode(db);
+                fprintf(stderr, "Could not write: %s\n", tcbdberrmsg(err));
                 return;
             }
         }
-        free( resp );
+        free(resp);
     }
 
-    free( value );
+    free(value);
 }
 
 /* Interactively enter a key into the DB. */
 static void
-interactive( TCBDB * db )
+interactive(TCBDB *db)
 {
-    char * key = NULL;
-    char * value = NULL;
-    char * space = NULL;
-    key = readline( "Key: " );
+    char *key = NULL;
+    char *value = NULL;
+    char *space = NULL;
+    key = readline("Key: ");
 
     /* Exit on an empty key. */
-    if ( !key || !*key )
+    if (!key || !*key)
         return;
 
     /* The key should only be one word... */
-    space = strchr( key, ' ' );
-    if ( space )
+    space = strchr(key, ' ');
+    if (space)
         *space = '\0';
 
-    while ( ! value || ! *value )
-        value = readline( "   : " );
+    while (! value || ! *value)
+        value = readline("   : ");
 
-    if ( ! tcbdbputkeep2( db, key, value ) )
+    if (! tcbdbputkeep2(db, key, value))
     {
-        int err = tcbdbecode( db );
-        char * resp = tcbdbget2( db, key );
-        if ( ! resp )
+        int err = tcbdbecode(db);
+        char *resp = tcbdbget2(db, key);
+        if (! resp)
         {
-            fprintf( stderr, "Could not write: %s\n", tcbdberrmsg( err ) );
+            fprintf(stderr, "Could not write: %s\n", tcbdberrmsg(err));
             return;
         }
-        free( resp );
+        free(resp);
         resp = NULL;
 
-        resp = readline( "Overwrite? [y/N] " );
-        if ( resp && ( resp[ 0 ] == 'y' || resp[ 0 ] == 'Y' ))
+        resp = readline("Overwrite? [y/N] ");
+        if (resp && (resp[ 0 ] == 'y' || resp[ 0 ] == 'Y'))
         {
-            if ( !tcbdbput2( db, key, value ) )
+            if (!tcbdbput2(db, key, value))
             {
-                err = tcbdbecode( db );
-                fprintf( stderr, "Could not write: %s\n", tcbdberrmsg( err ) );
+                err = tcbdbecode(db);
+                fprintf(stderr, "Could not write: %s\n", tcbdberrmsg(err));
                 return;
             }
         }
-        free( resp );
+        free(resp);
     }
 
-    free( key );
-    free( value );
+    free(key);
+    free(value);
 }
 
 /* List the keys of the current entries. */
 static void
-list_keys( TCBDB * db, int full )
+list_keys(TCBDB *db, int full)
 {
-    char * key = NULL;
-    char * value = NULL;
-    BDBCUR * cur = tcbdbcurnew( db );
-    if ( ! tcbdbcurfirst( cur ) )
+    char *key = NULL;
+    char *value = NULL;
+    BDBCUR *cur = tcbdbcurnew(db);
+    if (! tcbdbcurfirst(cur))
     {
-        fprintf( stdout, "Database is empty.\n" );
+        fprintf(stdout, "Database is empty.\n");
         return;
     }
 
     do
     {
-        key = tcbdbcurkey2( cur );
-        if ( key )
+        key = tcbdbcurkey2(cur);
+        if (key)
         {
-            fputs( key, stdout );
-            if ( full )
+            fputs(key, stdout);
+            if (full)
             {
-                value = tcbdbcurval2( cur );
-                if ( value )
+                value = tcbdbcurval2(cur);
+                if (value)
                 {
-                    fprintf( stdout, ":\t%s\n", value );
-                    free( value );
-                } else {
-                    fputc( '\n', stdout );
+                    fprintf(stdout, ":\t%s\n", value);
+                    free(value);
                 }
-            } else {
-                fputc( '\n', stdout );
+                else
+                {
+                    fputc('\n', stdout);
+                }
             }
-            free( key );
+            else
+            {
+                fputc('\n', stdout);
+            }
+            free(key);
         }
-    } while ( tcbdbcurnext( cur ) );
-    tcbdbcurdel( cur );
+    } while (tcbdbcurnext(cur));
+    tcbdbcurdel(cur);
 }
 
 /* Print the entry specified by key to stdout. */
 static void
-print_entry( TCBDB * db, const char * key )
+print_entry(TCBDB *db, const char *key)
 {
     /* The key should only be one word... */
-    char * space = strchr( key, ' ' );
-    char * value = NULL;
-    if ( space )
+    char *space = strchr(key, ' ');
+    char *value = NULL;
+    if (space)
         *space = '\0';
 
-    value = tcbdbget2( db, key );
-    if ( ! value )
+    value = tcbdbget2(db, key);
+    if (! value)
     {
-        fprintf( stderr, "'%s' does not exist.\n", key );
+        fprintf(stderr, "'%s' does not exist.\n", key);
         return;
     }
-    fprintf( stdout, "%s\n", value );
-    free( value );
+    fprintf(stdout, "%s\n", value);
+    free(value);
 }
 
 /* Print usage information. */
 static void
-usage( void )
+usage(void)
 {
-    fprintf( stderr,
-"Usage: %s [-h] [-l] [-f database_file] [-d] [key]\n\n"
-"If only 'key' is specified, the matching data is printed to stdout.  If no\n"
-"options are given, a list of keys is printed.\n\n"
-"\t-h        Print this message.\n"
-"\t-a [key]  Add a value with 'key' as the key.\n"
-"\t-f file   Specifies an alternate database file.\n"
-"\t-l        List the available keys and their values.\n"
-"\t-d key    Delete the entry specified by 'key'.\n\n",
-        progname);
+    fprintf(stderr,
+            "Usage: %s [-h] [-l] [-f database_file] [-d] [key]\n\n"
+            "If only 'key' is specified, the matching data is printed to stdout.  If no\n"
+            "options are given, a list of keys is printed.\n\n"
+            "\t-h        Print this message.\n"
+            "\t-a [key]  Add a value with 'key' as the key.\n"
+            "\t-f file   Specifies an alternate database file.\n"
+            "\t-l        List the available keys and their values.\n"
+            "\t-d key    Delete the entry specified by 'key'.\n\n",
+            progname);
 
     fprintf(stderr,
-"Transfer types:\n"
-"\t-i        Transfer the entry using X PRIMARY selection.\n"
-"\t-I        Transfer the entry using X CLIPBOARD selection.\n"
-"\n\nThe key is one word only.  If multiple words are entered,"
-" only the first is used as the key.\n");
+            "Transfer types:\n"
+            "\t-i        Transfer the entry using X PRIMARY selection.\n"
+            "\t-I        Transfer the entry using X CLIPBOARD selection.\n"
+            "\n\nThe key is one word only.  If multiple words are entered,"
+            " only the first is used as the key.\n");
 
-    exit( 0 );
+    exit(0);
 }
 
 #include <locale.h>
@@ -402,9 +407,9 @@ init_x_win(void)
 
     dest_atom = XInternAtom(d, "DROP_CLIP", False);
     XA_UTF8_STRING = XInternAtom(d, "UTF8_STRING", False);
- 
+
     w = XCreateSimpleWindow(d, RootWindow(d, DefaultScreen(d)), 0, 0, 1, 1, 0,
-        BlackPixel(d, DefaultScreen(d)), WhitePixel(d, DefaultScreen(d)));
+                            BlackPixel(d, DefaultScreen(d)), WhitePixel(d, DefaultScreen(d)));
     if (w == BadAlloc || w == BadMatch || w == BadValue || w == BadWindow)
     {
         w = 0;
@@ -435,7 +440,10 @@ get_X_timestamp(void)
     if (res == BadAlloc || res == BadAtom || res == BadMatch || res == BadValue
         || res == BadWindow) xdie("Local XChangeProperty.\n");
 
-    do { XNextEvent(d, &e); } while (e.type != PropertyNotify);
+    do
+    {
+        XNextEvent(d, &e);
+    } while (e.type != PropertyNotify);
 
     return e.xproperty.time;
 }
@@ -445,7 +453,7 @@ get_X_timestamp(void)
  * problems, NULL is returned.  The string returned will be null-terminated.
  */
 static char *
-read_X_selection( void )
+read_X_selection(void)
 {
     char *data = NULL;
     XEvent e;
@@ -454,7 +462,8 @@ read_X_selection( void )
 
     /* Request the data and wait for notification */
     XConvertSelection(d, selection_atom, XA_UTF8_STRING, dest_atom, w, t);
-    for(;;) {
+    for (;;)
+    {
         XNextEvent(d, &e);
         if (e.type == SelectionNotify) break;
     }
@@ -469,8 +478,8 @@ read_X_selection( void )
     int fmt;
     unsigned long num, after;
     int ret = XGetWindowProperty(d, w, dest_atom, 0L, 1024L, False,
-        AnyPropertyType, &type, &fmt, &num, &after, 
-        (unsigned char**) &data);
+                                 AnyPropertyType, &type, &fmt, &num, &after,
+                                 (unsigned char **) &data);
     if (ret != Success) xdie("XGetWindowProperty failed.\n");
     if (type == None) xdie("Property not set after paste notification");
     if (fmt != 8)
@@ -490,7 +499,7 @@ read_X_selection( void )
 /* Offer up the contents of the current drop for an X selection
  */
 static void
-set_X_selection( char * text )
+set_X_selection(char *text)
 {
     XEvent e;
     int res;
@@ -504,9 +513,11 @@ set_X_selection( char * text )
         xdie("Could not control X selection.\n");
 
     /* Process events */
-    for(;;) {
+    for (;;)
+    {
         XNextEvent(d, &e);
-        if (e.type == SelectionClear) {
+        if (e.type == SelectionClear)
+        {
             if (e.xselectionclear.time > t) /* Lost selection ownership */
                 final_x_win();
             else
@@ -515,7 +526,7 @@ set_X_selection( char * text )
         if (e.type != SelectionRequest) continue; /* Not a selection request */
 
         XSelectionRequestEvent *req =
-            (XSelectionRequestEvent*) &e.xselectionrequest;
+            (XSelectionRequestEvent *) &e.xselectionrequest;
 
         /* Create respeonse event */
         XEvent resp;
@@ -531,8 +542,8 @@ set_X_selection( char * text )
 
         /* Send the selection buffer data */
         res = XChangeProperty(d, resp.xselection.requestor,
-            resp.xselection.property, resp.xselection.target, 8,
-            PropModeReplace, (unsigned char*)text, strlen(text) + 1);
+                              resp.xselection.property, resp.xselection.target, 8,
+                              PropModeReplace, (unsigned char *)text, strlen(text) + 1);
         if (res == BadAlloc || res == BadAtom || res == BadMatch || res == BadValue
             || res == BadWindow)
         {
