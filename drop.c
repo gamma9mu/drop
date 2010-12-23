@@ -3,7 +3,7 @@
  * Distributed under 3-clause BSD license.  See LICENSE file for the details.
  */
 
-#define _XOPEN_SOURCE
+#define _XOPEN_SOURCE 500
 
 #include <tcutil.h>
 #include <tcbdb.h>
@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
 
 #include <limits.h>
 #include <malloc.h>
@@ -367,7 +368,7 @@ void usage( void )
 
 static Display *d = NULL;
 static Window w = 0;
-static Atom target_atom;
+static Atom selection_atom;
 
 /* Setup an X windows connection and the CLIPBOARD XAtom.
  */
@@ -380,9 +381,9 @@ init_x_win(void)
         xdie("Could not open display\n");
 
     if (xfertype == XSELECTION_PRIMARY)
-        target_atom = XA_PRIMARY;
+        selection_atom = XA_PRIMARY;
     else if (xfertype == XSELECTION_CLIPBOARD)
-        target_atom = XInternAtom(d, "CLIPBOARD", False);
+        selection_atom = XInternAtom(d, "CLIPBOARD", False);
     else
         xdie("Unknown selection atom.\n");
 
@@ -407,7 +408,46 @@ final_x_win(void)
 
 char * read_X_selection( void )
 {
-    return "";
+    char *data = NULL;
+    XEvent e;
+    int res;
+    init_x_win();
+
+    Atom dest_atom = XInternAtom(d, "DROP_CLIP", False);
+    Atom XA_UTF8_STRING = XInternAtom(d, "UTF8_STRING", False);
+
+    // Get the current X timestamp
+    XSelectInput(d, w, PropertyChangeMask);
+    res = XChangeProperty(d, w, selection_atom, XA_STRING, 8, PropModeAppend, 0, 0);
+    if (res == BadAlloc || res == BadAtom || res == BadMatch || res == BadValue
+        || res == BadWindow) xdie("Local XChangeProperty.\n");
+    do { XNextEvent(d, &e); } while (e.type != PropertyNotify);
+    Time t = e.xproperty.time;
+
+    XConvertSelection(d, selection_atom, XA_UTF8_STRING, dest_atom, w, t);
+
+    for(;;) {
+        XNextEvent(d, &e);
+        if (e.type == SelectionNotify) break;
+    }
+    if (e.xselection.property == None)
+        final_x_win();
+
+    Atom type;
+    int fmt;
+    unsigned long num, after;
+    int ret = XGetWindowProperty(d, w, dest_atom, 0L, 1024L, False,
+        AnyPropertyType, &type, &fmt, &num, &after, 
+        (unsigned char**) &data);
+    if (ret != Success) xdie("XGetWindowProperty failed.\n");
+    if (type == None) xdie("Property not set after paste notification");
+    if (fmt != 8) xdie("Invalid format size received\n;");
+
+    XDeleteProperty(d, w, dest_atom);
+    char *str = strdup(data);
+    XFree(data);
+
+    return str;
 }
 
 /* Offer up the contents of the current drop for an X selection
@@ -420,15 +460,15 @@ void set_X_selection( char * text )
 
     // Get the current X timestamp
     XSelectInput(d, w, PropertyChangeMask);
-    res = XChangeProperty(d, w, target_atom, XA_STRING, 8, PropModeAppend, 0, 0);
+    res = XChangeProperty(d, w, selection_atom, XA_STRING, 8, PropModeAppend, 0, 0);
     if (res == BadAlloc || res == BadAtom || res == BadMatch || res == BadValue
         || res == BadWindow) xdie("Local XChangeProperty.\n");
     do { XNextEvent(d, &e); } while (e.type != PropertyNotify);
     Time t = e.xproperty.time;
 
     // Grab selection ownership
-    res = XSetSelectionOwner(d, target_atom, w, t);
-    if (res == BadAtom || res == BadWindow || w != XGetSelectionOwner(d, target_atom))
+    res = XSetSelectionOwner(d, selection_atom, w, t);
+    if (res == BadAtom || res == BadWindow || w != XGetSelectionOwner(d, selection_atom))
         xdie("Could not control X selection.\n");
 
     // Process events
