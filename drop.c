@@ -505,7 +505,7 @@ set_X_selection(char *text)
         }
 
         /* Send notice to the requesting application */
-        res = XSendEvent(d, resp.xselection.requestor, True, 0L, &resp);
+        res = XSendEvent(d, resp.xselection.requestor, True, NoEventMask, &resp);
         if (res == BadValue || res == BadWindow)
             xdie("XSendEvent failed.\n");
 
