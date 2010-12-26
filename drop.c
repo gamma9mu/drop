@@ -30,7 +30,6 @@
 static void add_entry(TCBDB *db, const char *key);
 static void delete_entry(TCBDB *db, const char *key);
 static char *get_db_location(void);
-static void interactive(TCBDB *db);
 static void list_keys(TCBDB *db, int full);
 static void print_entry(TCBDB *db, const char *key);
 static void usage(void);
@@ -52,7 +51,7 @@ static Atom XA_UTF8_STRING;
 
 static char *progname;
 
-enum Operation { ADD, DELETE, LIST, FULL_LIST, INTERACTIVE, PRINT } op = PRINT;
+enum Operation { ADD, DELETE, LIST, FULL_LIST, PRINT } op = PRINT;
 enum TransferType { CONSOLE, READLINE,
 #ifdef X11
                     XSELECTION_PRIMARY, XSELECTION_CLIPBOARD
@@ -121,9 +120,6 @@ main(int argc, char *argv[])
     {
         case ADD:
             add_entry(db, key);
-            break;
-        case INTERACTIVE:
-            interactive(db);
             break;
         case DELETE:
             delete_entry(db, key);
@@ -248,56 +244,6 @@ add_entry(TCBDB *db, const char *key)
         free(resp);
     }
 
-    free(value);
-}
-
-/* Interactively enter a key into the DB. */
-static void
-interactive(TCBDB *db)
-{
-    char *key = NULL;
-    char *value = NULL;
-    char *space = NULL;
-    key = readline("Key: ");
-
-    /* Exit on an empty key. */
-    if (!key || !*key)
-        return;
-
-    /* The key should only be one word... */
-    space = strchr(key, ' ');
-    if (space)
-        *space = '\0';
-
-    while (! value || ! *value)
-        value = readline("   : ");
-
-    if (! tcbdbputkeep2(db, key, value))
-    {
-        int err = tcbdbecode(db);
-        char *resp = tcbdbget2(db, key);
-        if (! resp)
-        {
-            fprintf(stderr, "Could not write: %s\n", tcbdberrmsg(err));
-            return;
-        }
-        free(resp);
-        resp = NULL;
-
-        resp = readline("Overwrite? [y/N] ");
-        if (resp && (resp[ 0 ] == 'y' || resp[ 0 ] == 'Y'))
-        {
-            if (!tcbdbput2(db, key, value))
-            {
-                err = tcbdbecode(db);
-                fprintf(stderr, "Could not write: %s\n", tcbdberrmsg(err));
-                return;
-            }
-        }
-        free(resp);
-    }
-
-    free(key);
     free(value);
 }
 
