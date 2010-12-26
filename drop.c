@@ -76,6 +76,9 @@ main(int argc, char *argv[])
             || strcmp("help", argv[1]) == 0
             || strcmp("--help", argv[1]) == 0) {
         usage();
+    } else if (argc == 2) {
+        op = PRINT;
+        key = argv[1];
     } else if (strcmp("f", argv[1]) == 0
             || strcmp("fulllist", argv[1]) == 0) {
         op = FULL_LIST;
@@ -103,7 +106,7 @@ main(int argc, char *argv[])
 #endif
     }
 
-    if (op != LIST && op != FULL_LIST)
+    if (op != LIST && op != FULL_LIST && op != PRINT)
     {
         if (argc != 3) usage();
         key = argv[2];
