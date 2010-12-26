@@ -71,6 +71,11 @@ main(int argc, char *argv[])
     if (argc == 1 || strcmp("l", argv[1]) == 0
                   || strcmp("list", argv[1]) == 0) {
         op = LIST;
+    } else if (strcmp("h", argv[1]) == 0
+            || strcmp("-h", argv[1]) == 0
+            || strcmp("help", argv[1]) == 0
+            || strcmp("--help", argv[1]) == 0) {
+        usage();
     } else if (strcmp("f", argv[1]) == 0
             || strcmp("fulllist", argv[1]) == 0) {
         op = FULL_LIST;
@@ -80,9 +85,6 @@ main(int argc, char *argv[])
     } else if (strcmp("d", argv[1]) == 0
             || strcmp("delete", argv[1]) == 0) {
         op = DELETE;
-    } else if (strcmp("h", argv[1]) == 0
-            || strcmp("help", argv[1]) == 0) {
-        usage();
 #ifdef X11
     } else if (strncmp("xa", argv[1], 2) == 0
             || strncmp("xadd", argv[1], 4) == 0) {
@@ -319,23 +321,23 @@ static void
 usage(void)
 {
     fprintf(stderr,
-            "Usage: %s [-h] [-l] [-f database_file] [-d] [key]\n\n"
+            "Usage: %s [command | key]\n"
+            "\n"
             "If only 'key' is specified, the matching data is printed to stdout.  If no\n"
-            "options are given, a list of keys is printed.\n\n"
-            "\t-h        Print this message.\n"
-            "\t-a [key]  Add a value with 'key' as the key.\n"
-            "\t-f file   Specifies an alternate database file.\n"
-            "\t-l        List the available keys and their values.\n"
-            "\t-d key    Delete the entry specified by 'key'.\n\n",
+            "options are given, a list of keys is printed.\n"
+            "\n"
+            "\ta[dd]       <KEY> Add an item at KEY\n"
+            "\td[elete]    <KEY> Delete item at KEY\n"
+            "\tf[ulllist]        List all keys with their associated data.\n"
+            "\th[elp]            Print this message.\n"
+            "\tl[ist]            List all keys.\n"
+            "\txa[dd][c]   <KEY> Add and item at KEY from the X selection buffers\n"
+            "\txp[rint][c] <KEY> Print the data at KEY to an X selection buffer.\n"
+            "\n"
+            "For xadd and xprint, the option trailing 'c' specifies the CLIPBOARD\n"
+            "selection buffer should be used.  Otherwise, PRIMARY is used.\n"
+            "\n",
             progname);
-
-    fprintf(stderr,
-            "Transfer types:\n"
-            "\t-i        Transfer the entry using X PRIMARY selection.\n"
-            "\t-I        Transfer the entry using X CLIPBOARD selection.\n"
-            "\n\nThe key is one word only.  If multiple words are entered,"
-            " only the first is used as the key.\n");
-
     exit(0);
 }
 
