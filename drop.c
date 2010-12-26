@@ -62,7 +62,6 @@ enum TransferType { CONSOLE, READLINE,
 int
 main(int argc, char *argv[])
 {
-    char c;
     char *file = NULL;
     char *key = NULL;
 
@@ -70,54 +69,44 @@ main(int argc, char *argv[])
 
     progname = argv[ 0 ];
 
-    while ((c = (char)getopt(argc, argv, ":a:hilf:d:")) > 0)
-    {
-        switch (c)
-        {
-            case 'a':
-                op = ADD;
-                key = optarg;
-                break;
-            case 'd':
-                op = DELETE;
-                key = optarg;
-                break;
-            case 'f':
-                file = optarg;
-                break;
-            case 'h':
-                usage();
-                break;
+    if (argc == 1 || strcmp("l", argv[1]) == 0
+                  || strcmp("list", argv[1]) == 0) {
+        op = LIST;
+    } else if (strcmp("f", argv[1]) == 0
+            || strcmp("fulllist", argv[1]) == 0) {
+        op = FULL_LIST;
+    } else if (strcmp("a", argv[1]) == 0
+            || strcmp("add", argv[1]) == 0) {
+        op = ADD;
+    } else if (strcmp("d", argv[1]) == 0
+            || strcmp("delete", argv[1]) == 0) {
+        op = DELETE;
+    } else if (strcmp("h", argv[1]) == 0
+            || strcmp("help", argv[1]) == 0) {
+        usage();
 #ifdef X11
-            case 'i':
-                xfertype = XSELECTION_PRIMARY;
-                break;
-            case 'I':
-                xfertype = XSELECTION_CLIPBOARD;
-                break;
+    } else if (strncmp("xa", argv[1], 2) == 0
+            || strncmp("xadd", argv[1], 4) == 0) {
+        op = ADD;
+        if (argv[1][strlen(argv[1])] == 'c')
+            xfertype = XSELECTION_CLIPBOARD;
+        else
+            xfertype = XSELECTION_PRIMARY;
+    } else if (strncmp("xp", argv[1], 2) == 0
+            || strncmp("xprint", argv[1], 6) == 0) {
+        op = PRINT;
+        if (argv[1][strlen(argv[1])] == 'c')
+            xfertype = XSELECTION_CLIPBOARD;
+        else
+            xfertype = XSELECTION_PRIMARY;
 #endif
-            case 'l':
-                op = (op == LIST || op == FULL_LIST) ? FULL_LIST : LIST;
-                break;
-            case ':':
-                if (optopt == 'a')
-                {
-                    op = ADD;
-                    continue;
-                }
-                /* Fall through: -a allows for no arg */
-            case '?':
-            default:
-                usage();
-                break;
-        }
     }
 
-    if (!key && argv[ optind ])
-        key = argv[ optind ];
-
-    if (op == ADD && !(key && *key))
-        op = INTERACTIVE;
+    if (op != LIST && op != FULL_LIST)
+    {
+        if (argc != 3) usage();
+        key = argv[2];
+    }
 
     if (file == NULL) file = get_db_location();
     db = tcbdbnew();
@@ -227,8 +216,12 @@ add_entry(TCBDB *db, const char *key)
     if (space)
         *space = '\0';
 
-    while (! value || ! *value)
-        value = readline("   : ");
+#ifdef X11
+    if (xfertype == XSELECTION_PRIMARY || xfertype == XSELECTION_CLIPBOARD)
+        value = read_X_selection();
+    else
+#endif
+        while (! value || ! *value) value = readline("   : ");
 
     if (! tcbdbputkeep2(db, key, value))
     {
@@ -366,7 +359,12 @@ print_entry(TCBDB *db, const char *key)
         fprintf(stderr, "'%s' does not exist.\n", key);
         return;
     }
-    fprintf(stdout, "%s\n", value);
+#ifdef X11
+    if (xfertype == XSELECTION_PRIMARY || xfertype == XSELECTION_CLIPBOARD)
+        set_X_selection(value);
+    else
+#endif
+        fprintf(stdout, "%s\n", value);
     free(value);
 }
 
