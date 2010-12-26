@@ -117,7 +117,8 @@ main(int argc, char *argv[])
     if (! tcbdbopen(db, file, BDBOWRITER | BDBOCREAT | BDBOREADER))
     {
         int err = tcbdbecode(db);
-        fprintf(stderr, "Could not open database: %s\n:%s\n", file, tcbdberrmsg(err));
+        fprintf(stderr, "Could not open database: %s\n:%s\n", file,
+            tcbdberrmsg(err));
         exit(-1);
     }
 
@@ -324,23 +325,24 @@ static void
 usage(void)
 {
     fprintf(stderr,
-            "Usage: %s [command | key]\n"
-            "\n"
-            "If only 'key' is specified, the matching data is printed to stdout.  If no\n"
-            "options are given, a list of keys is printed.\n"
-            "\n"
-            "\ta[dd]       <KEY> Add an item at KEY\n"
-            "\td[elete]    <KEY> Delete item at KEY\n"
-            "\tf[ulllist]        List all keys with their associated data.\n"
-            "\th[elp]            Print this message.\n"
-            "\tl[ist]            List all keys.\n"
-            "\txa[dd][c]   <KEY> Add and item at KEY from the X selection buffers\n"
-            "\txp[rint][c] <KEY> Print the data at KEY to an X selection buffer.\n"
-            "\n"
-            "For xadd and xprint, the option trailing 'c' specifies the CLIPBOARD\n"
-            "selection buffer should be used.  Otherwise, PRIMARY is used.\n"
-            "\n",
-            progname);
+        "Usage: %s [command | key]\n"
+        "\n"
+        "If only 'key' is specified, the matching data is printed to stdout.  "
+        "If no\n"
+        "options are given, a list of keys is printed.\n"
+        "\n"
+        "\ta[dd]       <KEY> Add an item at KEY\n"
+        "\td[elete]    <KEY> Delete item at KEY\n"
+        "\tf[ulllist]        List all keys with their associated data.\n"
+        "\th[elp]            Print this message.\n"
+        "\tl[ist]            List all keys.\n"
+        "\txa[dd][c]   <KEY> Add and item at KEY from the X selection buffers\n"
+        "\txp[rint][c] <KEY> Print the data at KEY to an X selection buffer.\n"
+        "\n"
+        "For xadd and xprint, the option trailing 'c' specifies the CLIPBOARD\n"
+        "selection buffer should be used.  Otherwise, PRIMARY is used.\n"
+        "\n",
+        progname);
     exit(0);
 }
 
@@ -367,7 +369,8 @@ init_x_win(void)
     XA_UTF8_STRING = XInternAtom(d, "UTF8_STRING", False);
 
     w = XCreateSimpleWindow(d, RootWindow(d, DefaultScreen(d)), 0, 0, 1, 1, 0,
-                            BlackPixel(d, DefaultScreen(d)), WhitePixel(d, DefaultScreen(d)));
+                            BlackPixel(d, DefaultScreen(d)),
+                            WhitePixel(d, DefaultScreen(d)));
     if (w == BadAlloc || w == BadMatch || w == BadValue || w == BadWindow)
     {
         w = 0;
@@ -394,7 +397,8 @@ get_X_timestamp(void)
     XEvent e;
 
     XSelectInput(d, w, PropertyChangeMask);
-    res = XChangeProperty(d, w, selection_atom, XA_STRING, 8, PropModeAppend, 0, 0);
+    res = XChangeProperty(d, w, selection_atom, XA_STRING, 8, PropModeAppend,
+        0, 0);
     if (res == BadAlloc || res == BadAtom || res == BadMatch || res == BadValue
         || res == BadWindow) xdie("Local XChangeProperty.\n");
 
@@ -467,7 +471,8 @@ set_X_selection(char *text)
 
     /* Grab selection ownership */
     res = XSetSelectionOwner(d, selection_atom, w, t);
-    if (res == BadAtom || res == BadWindow || w != XGetSelectionOwner(d, selection_atom))
+    if (res == BadAtom || res == BadWindow
+        || w != XGetSelectionOwner(d, selection_atom))
         xdie("Could not control X selection.\n");
 
     /* Process events */
@@ -500,17 +505,19 @@ set_X_selection(char *text)
 
         /* Send the selection buffer data */
         res = XChangeProperty(d, resp.xselection.requestor,
-                              resp.xselection.property, resp.xselection.target, 8,
-                              PropModeReplace, (unsigned char *)text, strlen(text) + 1);
-        if (res == BadAlloc || res == BadAtom || res == BadMatch || res == BadValue
-            || res == BadWindow)
+                              resp.xselection.property, resp.xselection.target,
+                              8, PropModeReplace, (unsigned char *)text,
+                              strlen(text) + 1);
+        if (res == BadAlloc || res == BadAtom || res == BadMatch
+            || res == BadValue || res == BadWindow)
         {
             resp.xselection.property = None;
             fprintf(stderr, "Foreign XChangeProperty.\n");
         }
 
         /* Send notice to the requesting application */
-        res = XSendEvent(d, resp.xselection.requestor, True, NoEventMask, &resp);
+        res = XSendEvent(d, resp.xselection.requestor, True, NoEventMask,
+            &resp);
         if (res == BadValue || res == BadWindow)
             xdie("XSendEvent failed.\n");
 
