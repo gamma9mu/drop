@@ -4,16 +4,20 @@ database as its backend.  It is overkill.  It is grandiose overkill.
 
 Help output:
 
-Usage: ./drop [-h] [-l] [-f database_file] [-d] [key]
+Usage: ./drop [command | key]
 
 If only 'key' is specified, the matching data is printed to stdout.  If no
 options are given, a list of keys is printed.
 
-	-h        Print this message.
-	-a [key]  Add a value with 'key' as the key.
-	-f file   Specifies an alternate database file.
-	-l        List the available keys and their values.
-	-d key    Delete the entry specified by 'key'.
+	a[dd]       <KEY> Add an item at KEY
+	d[elete]    <KEY> Delete item at KEY
+	f[ulllist]        List all keys with their associated data.
+	h[elp]            Print this message.
+	l[ist]            List all keys.
+	xa[dd][c]   <KEY> Add and item at KEY from the X selection buffers
+	xp[rint][c] <KEY> Print the data at KEY to an X selection buffer.
 
+For xadd and xprint, the option trailing 'c' specifies the CLIPBOARD
+selection buffer should be used.  Otherwise, PRIMARY is used.
 
 The key is one word only.  If multiple words are entered, only the first is used.
