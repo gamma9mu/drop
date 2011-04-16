@@ -27,18 +27,33 @@
 #include <X11/Xatom.h>
 #endif
 
-static void add_entry(TCBDB *db, const char *key);
+enum Operation { ADD, DELETE, LIST, FULL_LIST, PRINT };
+enum TransferType { CONSOLE, READLINE,
+#ifdef X11
+XSELECTION_PRIMARY, XSELECTION_CLIPBOARD
+#endif
+};
+
+typedef struct {
+    enum Operation operation;
+    enum TransferType transfer_type;
+    char *key;
+} options;
+
+
+static void parse_options(int ct, char **op, options *options);
+static void add_entry(TCBDB *db, options *opt);
 static void delete_entry(TCBDB *db, const char *key);
 static char *get_db_location(void);
 static void list_keys(TCBDB *db, int full);
-static void print_entry(TCBDB *db, const char *key);
+static void print_entry(TCBDB *db, options *opt);
 static void usage(void);
 
 #ifdef X11
-static void init_x_win(void);
+static void init_x_win(enum TransferType xfertype);
 static void final_x_win(void);
-static char *read_X_selection(void);
-static void set_X_selection(char *text);
+static char *read_X_selection(options *opt);
+static void set_X_selection(options *opt, char *text);
 static void xdie(char *message);
 static Time get_X_timestamp(void);
 
@@ -51,66 +66,17 @@ static Atom XA_UTF8_STRING;
 
 static char *progname;
 
-enum Operation { ADD, DELETE, LIST, FULL_LIST, PRINT } op = PRINT;
-enum TransferType { CONSOLE, READLINE,
-#ifdef X11
-                    XSELECTION_PRIMARY, XSELECTION_CLIPBOARD
-#endif
-                  } xfertype = READLINE;
-
 int
 main(int argc, char *argv[])
 {
     char *file = NULL;
-    char *key = NULL;
 
     TCBDB *db;
 
     progname = argv[ 0 ];
 
-    if (argc == 1 || strcmp("l", argv[1]) == 0
-                  || strcmp("list", argv[1]) == 0) {
-        op = LIST;
-    } else if (strcmp("h", argv[1]) == 0
-            || strcmp("-h", argv[1]) == 0
-            || strcmp("help", argv[1]) == 0
-            || strcmp("--help", argv[1]) == 0) {
-        usage();
-    } else if (argc == 2) {
-        op = PRINT;
-        key = argv[1];
-    } else if (strcmp("f", argv[1]) == 0
-            || strcmp("fulllist", argv[1]) == 0) {
-        op = FULL_LIST;
-    } else if (strcmp("a", argv[1]) == 0
-            || strcmp("add", argv[1]) == 0) {
-        op = ADD;
-    } else if (strcmp("d", argv[1]) == 0
-            || strcmp("delete", argv[1]) == 0) {
-        op = DELETE;
-#ifdef X11
-    } else if (strncmp("xa", argv[1], 2) == 0
-            || strncmp("xadd", argv[1], 4) == 0) {
-        op = ADD;
-        if (argv[1][strlen(argv[1])] == 'c')
-            xfertype = XSELECTION_CLIPBOARD;
-        else
-            xfertype = XSELECTION_PRIMARY;
-    } else if (strncmp("xp", argv[1], 2) == 0
-            || strncmp("xprint", argv[1], 6) == 0) {
-        op = PRINT;
-        if (argv[1][strlen(argv[1])] == 'c')
-            xfertype = XSELECTION_CLIPBOARD;
-        else
-            xfertype = XSELECTION_PRIMARY;
-#endif
-    }
-
-    if (op != LIST && op != FULL_LIST && op != PRINT)
-    {
-        if (argc != 3) usage();
-        key = argv[2];
-    }
+    options opt;
+    parse_options(argc, argv, &opt);
 
     if (file == NULL) file = get_db_location();
     db = tcbdbnew();
@@ -122,16 +88,16 @@ main(int argc, char *argv[])
         exit(-1);
     }
 
-    switch (op)
+    switch (opt.operation)
     {
         case ADD:
-            add_entry(db, key);
+            add_entry(db, &opt);
             break;
         case DELETE:
-            delete_entry(db, key);
+            delete_entry(db, opt.key);
             break;
         case PRINT:
-            print_entry(db, key);
+            print_entry(db, &opt);
             break;
         case LIST:
             list_keys(db, 0);
@@ -148,6 +114,53 @@ main(int argc, char *argv[])
     }
     tcbdbdel(db);
     return 0;
+}
+
+static void
+parse_options(int ct, char** op, options *options_out)
+{
+    memset(options_out, 0, sizeof(options));
+
+    options_out->operation = PRINT;
+    options_out->transfer_type = READLINE;
+
+    if (ct == 1 || strcmp("l", op[1]) == 0 || strcmp("list", op[1]) == 0)
+    {
+        options_out->operation = LIST;
+    } else if (strcmp("h", op[1]) == 0 || strcmp("-h", op[1]) == 0
+        || strcmp("help", op[1]) == 0 || strcmp("--help", op[1]) == 0) {
+        usage();
+    } else if (ct == 2) {
+        options_out->operation = PRINT;
+        options_out->key = op[1];
+    } else if (strcmp("f", op[1]) == 0 || strcmp("fulllist", op[1]) == 0) {
+        options_out->operation = FULL_LIST;
+    } else if (strcmp("a", op[1]) == 0 || strcmp("add", op[1]) == 0) {
+        options_out->operation = ADD;
+    } else if (strcmp("d", op[1]) == 0 || strcmp("delete", op[1]) == 0) {
+        options_out->operation = DELETE;
+#ifdef X11
+    } else if (strncmp("xa", op[1], 2) == 0 || strncmp("xadd", op[1], 4) == 0) {
+        options_out->operation = ADD;
+        if (op[1][strlen(op[1])] == 'c')
+            options_out->transfer_type = XSELECTION_CLIPBOARD;
+        else
+            options_out->transfer_type = XSELECTION_PRIMARY;
+    } else if (strncmp("xp", op[1], 2) == 0 || strncmp("xprint", op[1], 6) == 0) {
+        options_out->operation = PRINT;
+        if (op[1][strlen(op[1])] == 'c')
+            options_out->transfer_type = XSELECTION_CLIPBOARD;
+        else
+            options_out->transfer_type = XSELECTION_PRIMARY;
+#endif
+    }
+
+    if (options_out->operation != LIST && options_out->operation != FULL_LIST && options_out->operation != PRINT)
+    {
+        if (ct != 3) usage();
+        options_out->key = op[2];
+    }
+
 }
 
 #ifndef _POSIX_PATH_MAX
@@ -208,19 +221,21 @@ get_db_location()
 }
 
 static void
-add_entry(TCBDB *db, const char *key)
+add_entry(TCBDB* db, options *opt)
 {
+    char *key = opt->key;
+    enum TransferType xfertype = opt->transfer_type;
     char *value = NULL;
     char *space = NULL;
 
     /* The key should only be one word... */
-    space = strchr(key, ' ');
+    space = strchr(opt->key, ' ');
     if (space)
         *space = '\0';
 
 #ifdef X11
     if (xfertype == XSELECTION_PRIMARY || xfertype == XSELECTION_CLIPBOARD)
-        value = read_X_selection();
+        value = read_X_selection(opt);
     else
 #endif
         while (! value || ! *value) value = readline("   : ");
@@ -297,8 +312,10 @@ list_keys(TCBDB *db, int full)
 
 /* Print the entry specified by key to stdout. */
 static void
-print_entry(TCBDB *db, const char *key)
+print_entry(TCBDB* db, options* opt)
 {
+    char *key = opt->key;
+    enum TransferType xfertype = opt->transfer_type;
     /* The key should only be one word... */
     char *space = strchr(key, ' ');
     char *value = NULL;
@@ -313,7 +330,7 @@ print_entry(TCBDB *db, const char *key)
     }
 #ifdef X11
     if (xfertype == XSELECTION_PRIMARY || xfertype == XSELECTION_CLIPBOARD)
-        set_X_selection(value);
+        set_X_selection(opt, value);
     else
 #endif
         fprintf(stdout, "%s\n", value);
@@ -351,7 +368,7 @@ usage(void)
 /* Setup an X windows connection and the CLIPBOARD XAtom.
  */
 static void
-init_x_win(void)
+init_x_win(enum TransferType xfertype)
 {
     setlocale(LC_CTYPE, "");
     d = XOpenDisplay(NULL);
@@ -415,11 +432,11 @@ get_X_timestamp(void)
  * problems, NULL is returned.  The string returned will be null-terminated.
  */
 static char *
-read_X_selection(void)
+read_X_selection(options *opt)
 {
     char *data = NULL;
     XEvent e;
-    init_x_win();
+    init_x_win(opt->transfer_type);
     Time t = get_X_timestamp();
 
     /* Request the data and wait for notification */
@@ -461,11 +478,11 @@ read_X_selection(void)
 /* Offer up the contents of the current drop for an X selection
  */
 static void
-set_X_selection(char *text)
+set_X_selection(options *opt, char *text)
 {
     XEvent e;
     int res;
-    init_x_win();
+    init_x_win(opt->transfer_type);
 
     Time t = get_X_timestamp();
 
