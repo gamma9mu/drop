@@ -33,6 +33,7 @@ enum TransferType { CONSOLE, READLINE,
 XSELECTION_PRIMARY, XSELECTION_CLIPBOARD
 #endif
 };
+enum ListingType { KEYS_ONLY = 0, KEYS_AND_ENTRIES = 1 };
 
 typedef struct {
     enum Operation operation;
@@ -45,7 +46,7 @@ static void parse_options(int ct, char **op, options *options);
 static void add_entry(TCBDB *db, options *opt);
 static void delete_entry(TCBDB *db, const char *key);
 static char *get_db_location(void);
-static void list_keys(TCBDB *db, int full);
+static void list_keys(TCBDB *db, enum ListingType full);
 static void print_entry(TCBDB *db, options *opt);
 static void usage(void);
 
@@ -100,10 +101,10 @@ main(int argc, char *argv[])
             print_entry(db, &opt);
             break;
         case LIST:
-            list_keys(db, 0);
+            list_keys(db, KEYS_ONLY);
             break;
         case FULL_LIST:
-            list_keys(db, 1);
+            list_keys(db, KEYS_AND_ENTRIES);
             break;
     }
 
@@ -270,7 +271,7 @@ add_entry(TCBDB *db, options *opt)
 
 /* List the keys of the current entries. */
 static void
-list_keys(TCBDB *db, int full)
+list_keys(TCBDB* db, enum ListingType full)
 {
     char *key = NULL;
     char *value = NULL;
