@@ -50,7 +50,7 @@ static void print_entry(TCBDB *db, options *opt);
 static void usage(void);
 
 #ifdef X11
-static void init_x_win(enum TransferType xfertype);
+static void init_x_win(enum TransferType destination);
 static void final_x_win(void);
 static char *read_X_selection(options *opt);
 static void set_X_selection(options *opt, char *text);
@@ -117,7 +117,7 @@ main(int argc, char *argv[])
 }
 
 static void
-parse_options(int ct, char** op, options *options_out)
+parse_options(int ct, char **op, options *options_out)
 {
     memset(options_out, 0, sizeof(options));
 
@@ -221,10 +221,10 @@ get_db_location()
 }
 
 static void
-add_entry(TCBDB* db, options *opt)
+add_entry(TCBDB *db, options *opt)
 {
     char *key = opt->key;
-    enum TransferType xfertype = opt->transfer_type;
+    enum TransferType dest = opt->transfer_type;
     char *value = NULL;
     char *space = NULL;
 
@@ -234,7 +234,7 @@ add_entry(TCBDB* db, options *opt)
         *space = '\0';
 
 #ifdef X11
-    if (xfertype == XSELECTION_PRIMARY || xfertype == XSELECTION_CLIPBOARD)
+    if (dest == XSELECTION_PRIMARY || dest == XSELECTION_CLIPBOARD)
         value = read_X_selection(opt);
     else
 #endif
@@ -312,10 +312,10 @@ list_keys(TCBDB *db, int full)
 
 /* Print the entry specified by key to stdout. */
 static void
-print_entry(TCBDB* db, options* opt)
+print_entry(TCBDB *db, options *opt)
 {
     char *key = opt->key;
-    enum TransferType xfertype = opt->transfer_type;
+    enum TransferType dest = opt->transfer_type;
     /* The key should only be one word... */
     char *space = strchr(key, ' ');
     char *value = NULL;
@@ -329,7 +329,7 @@ print_entry(TCBDB* db, options* opt)
         return;
     }
 #ifdef X11
-    if (xfertype == XSELECTION_PRIMARY || xfertype == XSELECTION_CLIPBOARD)
+    if (dest == XSELECTION_PRIMARY || dest == XSELECTION_CLIPBOARD)
         set_X_selection(opt, value);
     else
 #endif
@@ -368,16 +368,16 @@ usage(void)
 /* Setup an X windows connection and the CLIPBOARD XAtom.
  */
 static void
-init_x_win(enum TransferType xfertype)
+init_x_win(enum TransferType destination)
 {
     setlocale(LC_CTYPE, "");
     d = XOpenDisplay(NULL);
     if (d == NULL)
         xdie("Could not open display\n");
 
-    if (xfertype == XSELECTION_PRIMARY)
+    if (destination == XSELECTION_PRIMARY)
         selection_atom = XA_PRIMARY;
-    else if (xfertype == XSELECTION_CLIPBOARD)
+    else if (destination == XSELECTION_CLIPBOARD)
         selection_atom = XInternAtom(d, "CLIPBOARD", False);
     else
         xdie("Unknown selection atom.\n");
