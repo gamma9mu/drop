@@ -284,11 +284,10 @@ list_keys(TCBDB* db, enum ListingType full)
 
     do
     {
-        key = tcbdbcurkey2(cur);
-        if (key)
+        if ((key = tcbdbcurkey2(cur)) != NULL)
         {
             fputs(key, stdout);
-            if (full)
+            if (full == KEYS_AND_ENTRIES)
             {
                 if ((value = tcbdbcurval2(cur)) != NULL)
                 {
@@ -296,19 +295,15 @@ list_keys(TCBDB* db, enum ListingType full)
 
                     size_t keylen = strlen(key);
                     if (keylen < 10)
-                        for (int i = 10 - keylen; i > 0; --i) fputc(' ', stdout);
-                    fprintf(stdout, "%s\n", value);
+                    {
+                        for (int i = 10 - keylen; i > 0; --i)
+                            fputc(' ', stdout);
+                    }
+                    fputs(value, stdout);
                     free(value);
                 }
-                else
-                {
-                    fputc('\n', stdout);
-                }
             }
-            else
-            {
-                fputc('\n', stdout);
-            }
+            fputc('\n', stdout);
             free(key);
         }
     } while (tcbdbcurnext(cur));
