@@ -131,9 +131,6 @@ parse_options(int ct, char **op, options *options_out)
     } else if (strcmp("h", op[1]) == 0 || strcmp("-h", op[1]) == 0
         || strcmp("help", op[1]) == 0 || strcmp("--help", op[1]) == 0) {
         usage();
-    } else if (ct == 2) {
-        options_out->operation = PRINT;
-        options_out->key = op[1];
     } else if (strcmp("f", op[1]) == 0 || strcmp("fulllist", op[1]) == 0) {
         options_out->operation = FULL_LIST;
     } else if (strcmp("a", op[1]) == 0 || strcmp("add", op[1]) == 0) {
@@ -154,6 +151,9 @@ parse_options(int ct, char **op, options *options_out)
         else
             options_out->transfer_type = XSELECTION_PRIMARY;
 #endif
+    } else if (ct == 2) {
+        options_out->operation = PRINT;
+        options_out->key = op[1];
     }
 
     if (options_out->operation != LIST && options_out->operation != FULL_LIST && options_out->operation != PRINT)
