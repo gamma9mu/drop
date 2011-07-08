@@ -290,10 +290,14 @@ list_keys(TCBDB* db, enum ListingType full)
             fputs(key, stdout);
             if (full)
             {
-                value = tcbdbcurval2(cur);
-                if (value)
+                if ((value = tcbdbcurval2(cur)) != NULL)
                 {
-                    fprintf(stdout, ":\t%s\n", value);
+                    fputs(": ", stdout);
+
+                    size_t keylen = strlen(key);
+                    if (keylen < 10)
+                        for (int i = 10 - keylen; i > 0; --i) fputc(' ', stdout);
+                    fprintf(stdout, "%s\n", value);
                     free(value);
                 }
                 else
