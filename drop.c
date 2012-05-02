@@ -316,9 +316,11 @@ print_entry(TCBDB *db, options *opt)
 {
     char *key = opt->key;
     enum TransferType dest = opt->transfer_type;
+    char *space, *value = NULL;
+
+    if (key == NULL) return;
     /* The key should only be one word... */
-    char *space = strchr(key, ' ');
-    char *value = NULL;
+    space = strchr(key, ' ');
     if (space)
         *space = '\0';
 
