@@ -70,16 +70,14 @@ static char *progname;
 int
 main(int argc, char *argv[])
 {
-    char *file = NULL;
-
+    char *file;
     TCBDB *db;
-
-    progname = argv[ 0 ];
-
     options opt;
+    progname = argv[0];
+
     parse_options(argc, argv, &opt);
 
-    if (file == NULL) file = get_db_location();
+    file = get_db_location();
     db = tcbdbnew();
     if (! tcbdbopen(db, file, BDBOWRITER | BDBOCREAT | BDBOREADER))
     {
@@ -88,6 +86,7 @@ main(int argc, char *argv[])
             tcbdberrmsg(err));
         exit(-1);
     }
+    free(file);
 
     switch (opt.operation)
     {
