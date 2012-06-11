@@ -1,4 +1,4 @@
-CFLAGS+=-I/usr/include
+CFLAGS+=-O2 -I/usr/include
 CFLAGS+=-Wall -Wextra -pedantic
 CFLAGS+=-std=c99 `pkg-config --cflags x11` -DX11
 LDFLAGS=-lreadline `pkg-config --libs tokyocabinet x11`
