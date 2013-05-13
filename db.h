@@ -38,4 +38,8 @@ struct DbInterface {
     strerror_func strerror;
 };
 
+typedef void* database;
+typedef void* cursor;
+typedef struct DbInterface *(*get_interface_func)(void);
+
 #endif /* DB_H__ */
