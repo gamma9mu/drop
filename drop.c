@@ -5,7 +5,9 @@
 
 #define _XOPEN_SOURCE 500
 
+#include <dirent.h>
 #include <dlfcn.h>
+#include <errno.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -181,34 +183,62 @@ delete(struct DbInterface *dbi, void *db, const char *key) {
  * for freeing the string.
  */
 static char *
-get_db_location()
-{
+get_db_location() {
+    DIR *dir;
+    struct dirent *de;
+    bool found = false;
     char *location;
-    char *suffix = "/drop.tcb";
-    char *dir = getenv("XDG_DATA_HOME");
+    char *prefix = "drop.";
+    char *dirpath = getenv("XDG_DATA_HOME");
     size_t len = 0;
-    if (dir == NULL)
-    {
-        dir = getenv("HOME");
-        suffix = "/.drop.tcb";
+    if (dirpath == NULL) {
+        dirpath = getenv("HOME");
+        prefix = ".drop.";
     }
 
-    len = strlen(suffix) + strlen(dir);
-    if (len > _POSIX_PATH_MAX)
-    {
+    if ((dir = opendir(dirpath)) == NULL) {
+        fprintf(stderr, "Could not open directory: \"%s\": %s\n", dirpath,
+                strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+
+    while ((de = readdir(dir)) != NULL) {
+        if (strstr(de->d_name, prefix) != NULL) {
+            found = true;
+            break;
+        }
+    }
+
+    if (!found) {
+        if (errno) {
+            fprintf(stderr, "Error while scanning \"%s\": %s\n", dirpath,
+                    strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+        prefix = "drop.dbm";
+    } else {
+        prefix = de->d_name;
+    }
+
+    len = strlen(prefix) + strlen(dirpath) + 1;
+    if (len > _POSIX_PATH_MAX) {
         fprintf(stderr, "get_db_location: path name is impossible.\n");
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
 
     ++len; /* pad for a null */
-    location = (char *) malloc(len);
-    if (location == NULL)
-    {
+    if ((location = malloc(len)) == NULL) {
         fprintf(stderr, "get_db_location: malloc failed.\n");
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
 
-    snprintf(location, len, "%s%s", dir, suffix);
+    snprintf(location, len, "%s/%s", dirpath, prefix);
+
+    if (closedir(dir) != 0) {
+        fprintf(stderr, "Could not close directory: \"%s\": %s\n", dirpath,
+                strerror(errno));
+    }
+
     return location;
 }
 
