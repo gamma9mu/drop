@@ -43,6 +43,11 @@ typedef struct {
     char *key;
 } options;
 
+struct ExtensionMap {
+    const char *ext;
+    const char *type;
+};
+
 
 static void  parse_options(int ct, char **op, options *options);
 static void  add(struct DbInterface*, void*, options*);
@@ -52,7 +57,7 @@ static void  print(struct DbInterface*, void*, options*);
 static char *get_db_location(void);
 static void  usage(void);
 
-static get_interface_func load_tcdb_support(void);
+static get_interface_func load_support(char*);
 
 #ifdef X11
 static void  init_x_win(enum TransferType destination);
@@ -69,6 +74,11 @@ static Atom dest_atom;
 static Atom XA_UTF8_STRING;
 #endif
 
+static struct ExtensionMap extension_map[] = {
+    { "tcb", "tcbdb" },
+    { "dbm", "gdbm" }
+};
+
 static char *progname;
 
 int
@@ -76,14 +86,14 @@ main(int argc, char *argv[]) {
     char *file;
     database db;
     options opt;
-    struct DbInterface *dbi = (* load_tcdb_support())();
+    struct DbInterface *dbi;
     progname = argv[0];
 
     parse_options(argc, argv, &opt);
 
     file = get_db_location();
-    db = dbi->open(file);
-    if (db == NULL) {
+    dbi = (* load_support(file))();
+    if ((db = dbi->open(file)) == NULL) {
         int err = dbi->get_errno(db);
         fprintf(stderr, "Could not open database: %s\n:%s\n", file,
             dbi->strerror(err));
@@ -350,12 +360,30 @@ print(struct DbInterface *dbi, void *db, options *opt) {
 }
 
 static get_interface_func
-load_tcdb_support() {
-    void *lib;
-    void *load;
+load_support(char *db_file) {
+    const char *suffix, *type = NULL;
+    char libpath[64];
+    void *lib, *load;
     get_interface_func get_interface;
 
-    if ((lib = dlopen("./db_tcbdb.so", RTLD_LAZY)) == NULL) {
+    if ((suffix = strrchr(db_file, '.')) == NULL) {
+        type = "gdbm";
+    } else {
+        int items = (sizeof(extension_map) / sizeof(struct ExtensionMap));
+        ++suffix;
+        for (int i = 0; i < items; ++i) {
+            if (strcmp(extension_map[i].ext, suffix) == 0) {
+                type = extension_map[i].type;
+            }
+        }
+        if (type == NULL) {
+            type= "gdbm";
+        }
+    }
+
+    snprintf(libpath, 64, "./db_%s.so", type);
+
+    if ((lib = dlopen(libpath, RTLD_LAZY)) == NULL) {
         fprintf(stderr, "Could not load database support library: %s\n",
                 dlerror());
         exit(EXIT_FAILURE);
