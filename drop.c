@@ -5,20 +5,20 @@
 
 #define _XOPEN_SOURCE 500
 
-#include <tcutil.h>
-#include <tcbdb.h>
-
+#include <dlfcn.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
-
 #include <limits.h>
 #include <malloc.h>
 #include <unistd.h>
 
 #include <readline/readline.h>
+
+#include "db.h"
+#include "db_util.h"
 
 #ifdef X11
 #include <locale.h>
@@ -42,21 +42,23 @@ typedef struct {
 } options;
 
 
-static void parse_options(int ct, char **op, options *options);
-static void add_entry(TCBDB *db, options *opt);
-static void delete_entry(TCBDB *db, const char *key);
+static void  parse_options(int ct, char **op, options *options);
+static void  add(struct DbInterface*, void*, options*);
+static void  delete(struct DbInterface*, void*, const char*);
+static void  list(struct DbInterface*, void*, enum ListingType);
+static void  print(struct DbInterface*, void*, options*);
 static char *get_db_location(void);
-static void list_keys(TCBDB *db, enum ListingType full);
-static void print_entry(TCBDB *db, options *opt);
-static void usage(void);
+static void  usage(void);
+
+static get_interface_func load_tcdb_support(void);
 
 #ifdef X11
-static void init_x_win(enum TransferType destination);
-static void final_x_win(void);
+static void  init_x_win(enum TransferType destination);
+static void  final_x_win(void);
 static char *read_X_selection(options *opt);
-static void set_X_selection(options *opt, char *text);
-static void xdie(char *message);
-static Time get_X_timestamp(void);
+static void  set_X_selection(options *opt, char *text);
+static void  xdie(char *message);
+static Time  get_X_timestamp(void);
 
 static Display *d = NULL;
 static Window w = 0;
@@ -68,51 +70,47 @@ static Atom XA_UTF8_STRING;
 static char *progname;
 
 int
-main(int argc, char *argv[])
-{
+main(int argc, char *argv[]) {
     char *file;
-    TCBDB *db;
+    database db;
     options opt;
+    struct DbInterface *dbi = (* load_tcdb_support())();
     progname = argv[0];
 
     parse_options(argc, argv, &opt);
 
     file = get_db_location();
-    db = tcbdbnew();
-    if (! tcbdbopen(db, file, BDBOWRITER | BDBOCREAT | BDBOREADER))
-    {
-        int err = tcbdbecode(db);
+    db = dbi->open(file);
+    if (db == NULL) {
+        int err = dbi->get_errno(db);
         fprintf(stderr, "Could not open database: %s\n:%s\n", file,
-            tcbdberrmsg(err));
+            dbi->strerror(err));
         exit(-1);
     }
     free(file);
 
-    switch (opt.operation)
-    {
+    switch (opt.operation) {
         case ADD:
-            add_entry(db, &opt);
+            add(dbi, db, &opt);
             break;
         case DELETE:
-            delete_entry(db, opt.key);
+            delete(dbi, db, opt.key);
             break;
         case PRINT:
-            print_entry(db, &opt);
+            print(dbi, db, &opt);
             break;
         case LIST:
-            list_keys(db, KEYS_ONLY);
+            list(dbi, db, KEYS_ONLY);
             break;
         case FULL_LIST:
-            list_keys(db, KEYS_AND_ENTRIES);
+            list(dbi, db, KEYS_AND_ENTRIES);
             break;
     }
 
-    if (tcbdbclose(db) == false)
-    {
-        fprintf(stderr, "Error closing database: %s\n", file);
-        fprintf(stderr, "Continuing, since I'm out of ideas...\n");
+    if (!dbi->close(db)) {
+        fprintf(stderr, "Error closing database. Continuing, since I'm out of "
+                "ideas...\n");
     }
-    tcbdbdel(db);
     return 0;
 }
 
@@ -170,18 +168,12 @@ parse_options(int ct, char **op, options *options_out)
 
 /* Delete the entry specified by key. */
 static void
-delete_entry(TCBDB *db, const char *key)
-{
-    /* The key should only be one word... */
-    char *space = strchr(key, ' ');
-    if (space)
-        *space = '\0';
+delete(struct DbInterface *dbi, void *db, const char *key) {
+    normalize_key(key);
 
-    if (!tcbdbout2(db, key))
-    {
-        int err = tcbdbecode(db);
-        fprintf(stderr, "Could not delete '%s': %s\n", key, tcbdberrmsg(err));
-        return;
+    if (! dbi->delete(db, key)) {
+        fprintf(stderr, "Could not delete '%s': %s\n", key, 
+                dbi->strerror(dbi->get_errno(db)));
     }
 }
 
@@ -221,44 +213,40 @@ get_db_location()
 }
 
 static void
-add_entry(TCBDB *db, options *opt)
-{
+add(struct DbInterface *dbi, void *db, options *opt) {
     char *key = opt->key;
     enum TransferType dest = opt->transfer_type;
     char *value = NULL;
-    char *space = NULL;
 
-    /* The key should only be one word... */
-    space = strchr(opt->key, ' ');
-    if (space)
-        *space = '\0';
+    normalize_key(key);
 
 #ifdef X11
-    if (dest == XSELECTION_PRIMARY || dest == XSELECTION_CLIPBOARD)
+    if (dest == XSELECTION_PRIMARY || dest == XSELECTION_CLIPBOARD) {
         value = read_X_selection(opt);
-    else
+    } else {
 #endif
-        while (! value || ! *value) value = readline("   : ");
+        while (! value || ! *value) {
+            value = readline("   : ");
+        }
+#ifdef X11
+    }
+#endif
 
-    if (! tcbdbputkeep2(db, key, value))
-    {
-        int err = tcbdbecode(db);
-        char *resp = tcbdbget2(db, key);
-        if (! resp)
-        {
-            fprintf(stderr, "Could not write: %s\n", tcbdberrmsg(err));
+    if (!dbi->try_store(db, key, value)) {
+        int err = dbi->get_errno(db);
+        char *resp = dbi->fetch(db, key);
+        if (! resp) {
+            fprintf(stderr, "Could not write: %s\n", dbi->strerror(err));
             return;
         }
         free(resp);
         resp = NULL;
 
         resp = readline("Overwrite? [y/N] ");
-        if (resp && (resp[ 0 ] == 'y' || resp[ 0 ] == 'Y'))
-        {
-            if (!tcbdbput2(db, key, value))
-            {
-                err = tcbdbecode(db);
-                fprintf(stderr, "Could not write: %s\n", tcbdberrmsg(err));
+        if (resp && (resp[ 0 ] == 'y' || resp[ 0 ] == 'Y')) {
+            if (!dbi->store(db, key, value)) {
+                fprintf(stderr, "Could not write: %s\n",
+                        dbi->strerror(dbi->get_errno(db)));
                 return;
             }
         }
@@ -270,31 +258,24 @@ add_entry(TCBDB *db, options *opt)
 
 /* List the keys of the current entries. */
 static void
-list_keys(TCBDB* db, enum ListingType full)
-{
+list(struct DbInterface *dbi, void *db, enum ListingType full) {
     char *key = NULL;
     char *value = NULL;
-    BDBCUR *cur = tcbdbcurnew(db);
-    if (! tcbdbcurfirst(cur))
-    {
+    void *cur = dbi->create_cursor(db);
+    if (!dbi->cursor_first(db, cur)) {
         fprintf(stdout, "Database is empty.\n");
         return;
     }
 
-    do
-    {
-        if ((key = tcbdbcurkey2(cur)) != NULL)
-        {
+    do {
+        if ((key = dbi->cursor_key(db, cur)) != NULL) {
             fputs(key, stdout);
-            if (full == KEYS_AND_ENTRIES)
-            {
-                if ((value = tcbdbcurval2(cur)) != NULL)
-                {
+            if (full == KEYS_AND_ENTRIES) {
+                if ((value = dbi->cursor_value(db, cur)) != NULL) {
                     fputs(": ", stdout);
 
                     size_t keylen = strlen(key);
-                    if (keylen < 10)
-                    {
+                    if (keylen < 10) {
                         for (int i = 10 - keylen; i > 0; --i)
                             fputc(' ', stdout);
                     }
@@ -305,37 +286,57 @@ list_keys(TCBDB* db, enum ListingType full)
             fputc('\n', stdout);
             free(key);
         }
-    } while (tcbdbcurnext(cur));
-    tcbdbcurdel(cur);
+    } while (dbi->cursor_next(db, cur));
+    dbi->destroy_cursor(cur);
 }
 
 /* Print the entry specified by key to stdout. */
 static void
-print_entry(TCBDB *db, options *opt)
-{
+print(struct DbInterface *dbi, void *db, options *opt) {
     char *key = opt->key;
     enum TransferType dest = opt->transfer_type;
-    char *space, *value = NULL;
+    char *value = NULL;
 
-    if (key == NULL) return;
-    /* The key should only be one word... */
-    space = strchr(key, ' ');
-    if (space)
-        *space = '\0';
+    if (key == NULL){
+        return;
+    }
+    normalize_key(key);
 
-    value = tcbdbget2(db, key);
-    if (! value)
-    {
+    value = dbi->fetch(db, key);
+    if (! value) {
         fprintf(stderr, "'%s' does not exist.\n", key);
         return;
     }
 #ifdef X11
-    if (dest == XSELECTION_PRIMARY || dest == XSELECTION_CLIPBOARD)
+    if (dest == XSELECTION_PRIMARY || dest == XSELECTION_CLIPBOARD) {
         set_X_selection(opt, value);
-    else
+    } else {
 #endif
         fprintf(stdout, "%s\n", value);
+#ifdef X11
+    }
+#endif
     free(value);
+}
+
+static get_interface_func
+load_tcdb_support() {
+    void *lib;
+    void *load;
+    get_interface_func get_interface;
+
+    if ((lib = dlopen("./db_tcbdb.so", RTLD_LAZY)) == NULL) {
+        fprintf(stderr, "Could not load database support library: %s\n",
+                dlerror());
+        exit(EXIT_FAILURE);
+    }
+    if ((load = dlsym(lib, "get_interface")) == NULL) {
+        fprintf(stderr, "Error loading database support: %s\n", dlerror());
+        exit(EXIT_FAILURE);
+    }
+
+    *(void**) (&get_interface) = load;
+    return get_interface;
 }
 
 /* Print usage information. */
