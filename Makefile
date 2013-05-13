@@ -7,12 +7,12 @@ DBMLDFLAGS := -lgdbm
 .PHONY: all clean
 .SUFFIXES: .c
 
-all: drop db_gdbm.o db_tcbdb.so
+all: drop db_gdbm.so db_tcbdb.so
 	
 drop: drop.o db_util.o
 	$(CC) $(CFLAGS) $(LDFLAGS) $(MFLDFLAGS) -o $@ $^
 
-db_gdbm.o: db_gdbm.c db.h
+db_gdbm.so: db_gdbm.c db.h
 	$(CC) $(CFLAGS) $(SOCFLAGS) $(LDFLAGS) $(DBMLDFLAGS) -o $@ $<
 
 db_tcbdb.so: db_tcbdb.c db.h
