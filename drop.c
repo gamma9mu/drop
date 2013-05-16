@@ -123,6 +123,7 @@ main(int argc, char *argv[]) {
         fprintf(stderr, "Error closing database. Continuing, since I'm out of "
                 "ideas...\n");
     }
+    free(dbi);
     return 0;
 }
 
