@@ -92,7 +92,7 @@ main(int argc, char *argv[]) {
     parse_options(argc, argv, &opt);
 
     file = get_db_location();
-    dbi = (* load_support(file))();
+    dbi = load_support(file)();
     if ((db = dbi->open(file)) == NULL) {
         int err = dbi->get_errno(db);
         fprintf(stderr, "Could not open database: %s\n:%s\n", file,

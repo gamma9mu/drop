@@ -89,17 +89,17 @@ get_interface() {
     if (dbint == NULL) {
         return dbint;
     }
-    dbint->get_errno = (errno_func) &gdbm_get_errno;
-    dbint->strerror = (strerror_func) &gdbm_strerror;
-    dbint->delete = (delete_func) &gdbm_delete;
-    dbint->fetch = (fetch_func) &gdbm_fetch;
-    dbint->try_store = &gdbm_store_try;
-    dbint->store = &gdbm_store_force;
-    dbint->create_cursor = (create_cursor_func) &gdbm_create_cursor;
-    dbint->destroy_cursor = (destroy_cursor_func) &gdbm_destroy_cursor;
-    dbint->cursor_first = (cursor_first_func) &gdbm_cursor_first;
-    dbint->cursor_next = (cursor_next_func) &gdbm_cursor_next;
-    dbint->cursor_key = (cursor_key_func) &gdbm_cursor_key;
-    dbint->cursor_value = (cursor_value_func) &gdbm_cursor_value;
+    dbint->get_errno = (errno_func) gdbm_get_errno;
+    dbint->strerror = (strerror_func) gdbm_strerror;
+    dbint->delete = (delete_func) gdbm_delete;
+    dbint->fetch = (fetch_func) gdbm_fetch;
+    dbint->try_store = gdbm_store_try;
+    dbint->store = gdbm_store_force;
+    dbint->create_cursor = (create_cursor_func) gdbm_create_cursor;
+    dbint->destroy_cursor = (destroy_cursor_func) gdbm_destroy_cursor;
+    dbint->cursor_first = (cursor_first_func) gdbm_cursor_first;
+    dbint->cursor_next = (cursor_next_func) gdbm_cursor_next;
+    dbint->cursor_key = (cursor_key_func) gdbm_cursor_key;
+    dbint->cursor_value = (cursor_value_func) gdbm_cursor_value;
     return dbint;
 }

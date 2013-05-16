@@ -72,17 +72,17 @@ get_interface() {
     }
     dbint->open = (open_func) tcdb_open;
     dbint->close = (close_func) tcdb_close;
-    dbint->get_errno = (errno_func) &tcbdbecode;
-    dbint->strerror = (strerror_func) &tcbdberrmsg;
-    dbint->delete = (delete_func) &tcbdbout2;
-    dbint->fetch = (fetch_func) &tcbdbget2;
-    dbint->try_store = (try_store_func) &tcbdbputkeep2;
-    dbint->store = (store_func) &tcbdbput2;
-    dbint->create_cursor = (create_cursor_func) &tcdb_create_cursor;
-    dbint->destroy_cursor = (destroy_cursor_func) &tcdb_destroy_cursor;
-    dbint->cursor_first = (cursor_first_func) &tcdb_cursor_first;
-    dbint->cursor_next = (cursor_next_func) &tcdb_cursor_next;
-    dbint->cursor_key = (cursor_key_func) &tcdb_cursor_key;
-    dbint->cursor_value = (cursor_value_func) &tcdb_cursor_value;
+    dbint->get_errno = (errno_func) tcbdbecode;
+    dbint->strerror = (strerror_func) tcbdberrmsg;
+    dbint->delete = (delete_func) tcbdbout2;
+    dbint->fetch = (fetch_func) tcbdbget2;
+    dbint->try_store = (try_store_func) tcbdbputkeep2;
+    dbint->store = (store_func) tcbdbput2;
+    dbint->create_cursor = (create_cursor_func) tcdb_create_cursor;
+    dbint->destroy_cursor = (destroy_cursor_func) tcdb_destroy_cursor;
+    dbint->cursor_first = (cursor_first_func) tcdb_cursor_first;
+    dbint->cursor_next = (cursor_next_func) tcdb_cursor_next;
+    dbint->cursor_key = (cursor_key_func) tcdb_cursor_key;
+    dbint->cursor_value = (cursor_value_func) tcdb_cursor_value;
     return dbint;
 }
