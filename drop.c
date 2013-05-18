@@ -16,6 +16,8 @@
 #include <limits.h>
 #include <malloc.h>
 #include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #include <readline/readline.h>
 
@@ -58,6 +60,8 @@ static char *get_db_location(void);
 static void  usage(void);
 
 static get_interface_func load_support(char*);
+static char *get_application_path(void);
+static int is_link(const char*);
 
 #ifdef X11
 static void  init_x_win(enum TransferType destination);
@@ -363,7 +367,7 @@ print(struct DbInterface *dbi, void *db, options *opt) {
 static get_interface_func
 load_support(char *db_file) {
     const char *suffix, *type = NULL;
-    char libpath[64];
+    char libpath[_POSIX_PATH_MAX];
     void *lib, *load;
     get_interface_func get_interface;
 
@@ -382,7 +386,9 @@ load_support(char *db_file) {
         }
     }
 
-    snprintf(libpath, 64, "./db_%s.so", type);
+    char *basepath = get_application_path();
+    snprintf(libpath, 64, "%s/db_%s.so", basepath, type);
+    free(basepath);
 
     if ((lib = dlopen(libpath, RTLD_LAZY)) == NULL) {
         fprintf(stderr, "Could not load database support library: %s\n",
@@ -396,6 +402,58 @@ load_support(char *db_file) {
 
     *(void**) (&get_interface) = load;
     return get_interface;
+}
+
+static char *
+get_application_path() {
+    char *apath;
+    char *slash = strrchr(progname, '/');
+    if (slash != NULL) {
+        apath = strdup(progname);
+        apath[slash - progname + 1] = '\0';
+        return apath;
+    }
+    char *path = getenv("PATH");
+    char *p = strtok(path, ":");
+    size_t baselen = strlen(progname);
+    while (p != NULL) {
+        char *apath = malloc(baselen + strlen(p) + 2);
+        if (apath == NULL) {
+            perror("malloc");
+            exit(EXIT_FAILURE);
+        }
+        snprintf(apath, baselen + strlen(p) + 2, "%s/%s", p, progname);
+
+        if (access(apath, F_OK) == 0) {
+            if (is_link(apath)) {
+                ssize_t len;
+                char lnk[_POSIX_PATH_MAX];
+                if ((len = readlink(apath, lnk, _POSIX_PATH_MAX)) == -1) {
+                    perror("readlink");
+                    exit(EXIT_FAILURE);
+                }
+                lnk[len - baselen] = 0;
+                p = strdup(lnk);
+                continue;
+            }
+            free(apath);
+            break;
+        }
+        free(apath);
+        apath = NULL;
+        p = strtok(NULL, ":");
+    }
+    return strdup(p);
+}
+
+static int
+is_link(const char *file) {
+    struct stat s;
+    if (lstat(file, &s) != 0) {
+        perror("Error in stat");
+        exit(EXIT_FAILURE);
+    }
+    return S_ISLNK(s.st_mode);
 }
 
 /* Print usage information. */
