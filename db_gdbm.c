@@ -4,9 +4,11 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #include "db.h"
 
+static bool  gdbm_close_func(void*);
 static void *gdbm_create_cursor(void*);
 static bool  gdbm_cursor_first(void*, datum);
 static char *gdbm_cursor_key(void*, datum);
@@ -14,10 +16,18 @@ static bool  gdbm_cursor_next(void*, datum);
 static char *gdbm_cursor_value(void*, datum);
 static void  gdbm_destroy_cursor(void*);
 static int   gdbm_get_errno(void);
+static void  nothing(const char*);
+static void *gdbm_open_func(const char*);
 static bool  gdbm_store_force(void*, char*, char*);
 static bool  gdbm_store_try(void*, char*, char*);
 
 struct DbInterface *get_interface(void);
+
+static bool
+gdbm_close_func(void *db) {
+    gdbm_close(db);
+    return true;
+}
 
 static void *
 gdbm_create_cursor(void *db) {
@@ -59,6 +69,17 @@ gdbm_get_errno() {
     return (int) gdbm_errno;
 }
 
+static void
+nothing(const char *c) {
+    (void) c;
+}
+
+static void *
+gdbm_open_func(const char *file) {
+    return gdbm_open(file, 0, GDBM_WRCREAT,
+            S_IRUSR | S_IWUSR, nothing);
+}
+
 static bool
 gdbm_store_force(void *db, char *key, char *value) {
     datum k, v;
@@ -89,6 +110,8 @@ get_interface() {
     if (dbint == NULL) {
         return dbint;
     }
+    dbint->open = (open_func) gdbm_open_func;
+    dbint->close = (close_func) gdbm_close_func;
     dbint->get_errno = (errno_func) gdbm_get_errno;
     dbint->strerror = (strerror_func) gdbm_strerror;
     dbint->delete = (delete_func) gdbm_delete;
