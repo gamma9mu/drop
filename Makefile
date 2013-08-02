@@ -1,4 +1,4 @@
-CFLAGS+=-O2 -Wall -Wextra -pedantic -std=c99 -DX11
+CFLAGS += -g -O2 -Wall -Wextra -pedantic -std=c99 -DX11
 SOCFLAGS := -fPIC -shared
 MFLDFLAGS := -lreadline -ldl `pkg-config --libs x11`
 TCLDFLAGS := `pkg-config --libs tokyocabinet`
