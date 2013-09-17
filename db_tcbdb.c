@@ -1,3 +1,4 @@
+#include <string.h>
 #include <tcutil.h>
 #include <tcbdb.h>
 
@@ -64,25 +65,29 @@ tcdb_open(const char *file) {
     return db;
 }
 
+static struct DbInterface tcbdb = {
+    .open = (open_func) tcdb_open,
+    .close = (close_func) tcdb_close,
+    .get_errno = (errno_func) tcbdbecode,
+    .strerror = (strerror_func) tcbdberrmsg,
+    .delete = (delete_func) tcbdbout2,
+    .fetch = (fetch_func) tcbdbget2,
+    .try_store = (try_store_func) tcbdbputkeep2,
+    .store = (store_func) tcbdbput2,
+    .create_cursor = (create_cursor_func) tcdb_create_cursor,
+    .destroy_cursor = (destroy_cursor_func) tcdb_destroy_cursor,
+    .cursor_first = (cursor_first_func) tcdb_cursor_first,
+    .cursor_next = (cursor_next_func) tcdb_cursor_next,
+    .cursor_key = (cursor_key_func) tcdb_cursor_key,
+    .cursor_value = (cursor_value_func) tcdb_cursor_value
+};
+
 struct DbInterface *
 get_interface() {
     struct DbInterface *dbint = malloc(sizeof(struct DbInterface));
     if (dbint == NULL) {
         return dbint;
     }
-    dbint->open = (open_func) tcdb_open;
-    dbint->close = (close_func) tcdb_close;
-    dbint->get_errno = (errno_func) tcbdbecode;
-    dbint->strerror = (strerror_func) tcbdberrmsg;
-    dbint->delete = (delete_func) tcbdbout2;
-    dbint->fetch = (fetch_func) tcbdbget2;
-    dbint->try_store = (try_store_func) tcbdbputkeep2;
-    dbint->store = (store_func) tcbdbput2;
-    dbint->create_cursor = (create_cursor_func) tcdb_create_cursor;
-    dbint->destroy_cursor = (destroy_cursor_func) tcdb_destroy_cursor;
-    dbint->cursor_first = (cursor_first_func) tcdb_cursor_first;
-    dbint->cursor_next = (cursor_next_func) tcdb_cursor_next;
-    dbint->cursor_key = (cursor_key_func) tcdb_cursor_key;
-    dbint->cursor_value = (cursor_value_func) tcdb_cursor_value;
+    memcpy(dbint, &tcbdb, sizeof(struct DbInterface));
     return dbint;
 }

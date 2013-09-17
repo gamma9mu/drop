@@ -104,25 +104,29 @@ gdbm_store_try(void *db, char *key, char *value) {
     return ret == 0;
 }
 
+static struct DbInterface gdbm = {
+    .open = (open_func) gdbm_open_func,
+    .close = (close_func) gdbm_close_func,
+    .get_errno = (errno_func) gdbm_get_errno,
+    .strerror = (strerror_func) gdbm_strerror,
+    .delete = (delete_func) gdbm_delete,
+    .fetch = (fetch_func) gdbm_fetch,
+    .try_store = gdbm_store_try,
+    .store = gdbm_store_force,
+    .create_cursor = (create_cursor_func) gdbm_create_cursor,
+    .destroy_cursor = (destroy_cursor_func) gdbm_destroy_cursor,
+    .cursor_first = (cursor_first_func) gdbm_cursor_first,
+    .cursor_next = (cursor_next_func) gdbm_cursor_next,
+    .cursor_key = (cursor_key_func) gdbm_cursor_key,
+    .cursor_value = (cursor_value_func) gdbm_cursor_value
+};
+
 struct DbInterface *
 get_interface() {
     struct DbInterface *dbint = malloc(sizeof(struct DbInterface));
     if (dbint == NULL) {
         return dbint;
     }
-    dbint->open = (open_func) gdbm_open_func;
-    dbint->close = (close_func) gdbm_close_func;
-    dbint->get_errno = (errno_func) gdbm_get_errno;
-    dbint->strerror = (strerror_func) gdbm_strerror;
-    dbint->delete = (delete_func) gdbm_delete;
-    dbint->fetch = (fetch_func) gdbm_fetch;
-    dbint->try_store = gdbm_store_try;
-    dbint->store = gdbm_store_force;
-    dbint->create_cursor = (create_cursor_func) gdbm_create_cursor;
-    dbint->destroy_cursor = (destroy_cursor_func) gdbm_destroy_cursor;
-    dbint->cursor_first = (cursor_first_func) gdbm_cursor_first;
-    dbint->cursor_next = (cursor_next_func) gdbm_cursor_next;
-    dbint->cursor_key = (cursor_key_func) gdbm_cursor_key;
-    dbint->cursor_value = (cursor_value_func) gdbm_cursor_value;
+    memcpy(dbint, &gdbm, sizeof(struct DbInterface));
     return dbint;
 }
