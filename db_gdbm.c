@@ -10,13 +10,12 @@
 
 static bool  gdbm_close_func(void*);
 static void *gdbm_create_cursor(void*);
-static bool  gdbm_cursor_first(void*, datum);
-static char *gdbm_cursor_key(void*, datum);
-static bool  gdbm_cursor_next(void*, datum);
-static char *gdbm_cursor_value(void*, datum);
+static bool  gdbm_cursor_first(void*, datum*);
+static char *gdbm_cursor_key(void*, datum*);
+static bool  gdbm_cursor_next(void*, datum*);
+static char *gdbm_cursor_value(void*, datum*);
 static void  gdbm_destroy_cursor(void*);
 static int   gdbm_get_errno(void);
-static void  nothing(const char*);
 static void *gdbm_open_func(const char*);
 static bool  gdbm_store_force(void*, char*, char*);
 static bool  gdbm_store_try(void*, char*, char*);
@@ -36,26 +35,26 @@ gdbm_create_cursor(void *db) {
 }
 
 static bool
-gdbm_cursor_first(void *db, datum gdbm_cursor) {
-    gdbm_cursor = gdbm_firstkey(db);
-    return gdbm_cursor.dptr != NULL;
+gdbm_cursor_first(void *db, datum *gdbm_cursor) {
+    *gdbm_cursor = gdbm_firstkey(db);
+    return gdbm_cursor->dptr != NULL;
 }
 
 static char *
-gdbm_cursor_key(void *db, datum gdbm_cursor) {
+gdbm_cursor_key(void *db, datum *gdbm_cursor) {
     (void) db;
-    return strdup(gdbm_cursor.dptr);
+    return strdup(gdbm_cursor->dptr);
 }
 
 static bool
-gdbm_cursor_next(void *db, datum gdbm_cursor) {
-    gdbm_cursor = gdbm_nextkey(db, gdbm_cursor);
-    return gdbm_cursor.dptr != NULL;
+gdbm_cursor_next(void *db, datum *gdbm_cursor) {
+    *gdbm_cursor = gdbm_nextkey(db, *gdbm_cursor);
+    return gdbm_cursor->dptr != NULL;
 }
 
 static char *
-gdbm_cursor_value(void *db, datum gdbm_cursor) {
-    datum ret = gdbm_fetch(db, gdbm_cursor);
+gdbm_cursor_value(void *db, datum *gdbm_cursor) {
+    datum ret = gdbm_fetch(db, *gdbm_cursor);
     return strdup(ret.dptr);
 }
 
@@ -69,15 +68,10 @@ gdbm_get_errno() {
     return (int) gdbm_errno;
 }
 
-static void
-nothing(const char *c) {
-    (void) c;
-}
-
 static void *
 gdbm_open_func(const char *file) {
     return gdbm_open(file, 0, GDBM_WRCREAT,
-            S_IRUSR | S_IWUSR, nothing);
+            S_IRUSR | S_IWUSR, NULL);
 }
 
 static bool

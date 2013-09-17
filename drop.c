@@ -307,18 +307,18 @@ list(struct DbInterface *dbi, void *db, enum ListingType full) {
     char *key = NULL;
     char *value = NULL;
     void *cur = dbi->create_cursor(db);
-    if (!dbi->cursor_first(db, cur)) {
+    if (!dbi->cursor_first(db, &cur)) {
         fprintf(stdout, "Database is empty.\n");
         return;
     }
 
     do {
-        if ((key = dbi->cursor_key(db, cur)) != NULL) {
+        if ((key = dbi->cursor_key(db, &cur)) != NULL) {
             fputs(key, stdout);
             if (full == KEYS_AND_ENTRIES) {
-                if ((value = dbi->cursor_value(db, cur)) != NULL) {
+                if ((value = dbi->cursor_value(db, &cur)) != NULL) {
                     fputs(": ", stdout);
-
+                    printf("..\n");
                     size_t keylen = strlen(key);
                     if (keylen < 10) {
                         for (int i = 10 - keylen; i > 0; --i)
@@ -331,8 +331,8 @@ list(struct DbInterface *dbi, void *db, enum ListingType full) {
             fputc('\n', stdout);
             free(key);
         }
-    } while (dbi->cursor_next(db, cur));
-    dbi->destroy_cursor(cur);
+    } while (dbi->cursor_next(db, &cur));
+    dbi->destroy_cursor(&cur);
 }
 
 /* Print the entry specified by key to stdout. */

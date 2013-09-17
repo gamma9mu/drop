@@ -6,11 +6,11 @@
 
 static bool  tcdb_close(void*);
 static void *tcdb_create_cursor(void*);
-static bool  tcdb_cursor_first(void*, void*);
-static char *tcdb_cursor_key(void*, void*);
-static bool  tcdb_cursor_next(void*, void*);
-static char *tcdb_cursor_value(void*, void*);
-static void  tcdb_destroy_cursor(void*);
+static bool  tcdb_cursor_first(void*, void**);
+static char *tcdb_cursor_key(void*, void**);
+static bool  tcdb_cursor_next(void*, void**);
+static char *tcdb_cursor_value(void*, void**);
+static void  tcdb_destroy_cursor(void**);
 static void *tcdb_open(const char*);
 
 struct DbInterface *get_interface(void);
@@ -28,32 +28,32 @@ tcdb_create_cursor(void *db) {
 }
 
 static bool
-tcdb_cursor_first(void *db, void *cursor) {
+tcdb_cursor_first(void *db, void **cursor) {
     (void) db;
-    return tcbdbcurfirst(cursor);
+    return tcbdbcurfirst(*cursor);
 }
 
 static char *
-tcdb_cursor_key(void *db, void *cursor) {
+tcdb_cursor_key(void *db, void **cursor) {
     (void) db;
-    return tcbdbcurkey2(cursor);
+    return tcbdbcurkey2(*cursor);
 }
 
 static bool
-tcdb_cursor_next(void *db, void *cursor) {
+tcdb_cursor_next(void *db, void **cursor) {
     (void) db;
-    return tcbdbcurnext(cursor);
+    return tcbdbcurnext(*cursor);
 }
 
 static char *
-tcdb_cursor_value(void *db, void *cursor) {
+tcdb_cursor_value(void *db, void **cursor) {
     (void) db;
-    return tcbdbcurval2(cursor);
+    return tcbdbcurval2(*cursor);
 }
 
 static void
-tcdb_destroy_cursor(void *cursor) {
-    tcbdbcurdel(cursor);
+tcdb_destroy_cursor(void **cursor) {
+    tcbdbcurdel(*cursor);
 }
 
 static void *
