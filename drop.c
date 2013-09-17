@@ -101,7 +101,7 @@ main(int argc, char *argv[]) {
         int err = dbi->get_errno(db);
         fprintf(stderr, "Could not open database: %s\n:%s\n", file,
             dbi->strerror(err));
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
     free(file);
 
@@ -128,7 +128,7 @@ main(int argc, char *argv[]) {
                 "ideas...\n");
     }
     free(dbi);
-    return 0;
+    return EXIT_SUCCESS;
 }
 
 static void
