@@ -318,7 +318,6 @@ list(struct DbInterface *dbi, void *db, enum ListingType full) {
             if (full == KEYS_AND_ENTRIES) {
                 if ((value = dbi->cursor_value(db, &cur)) != NULL) {
                     fputs(": ", stdout);
-                    printf("..\n");
                     size_t keylen = strlen(key);
                     if (keylen < 10) {
                         for (int i = 10 - keylen; i > 0; --i)
