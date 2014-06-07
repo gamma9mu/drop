@@ -471,11 +471,11 @@ usage(void)
         "\tf[ulllist]        List all keys with their associated data.\n"
         "\th[elp]            Print this message.\n"
         "\tl[ist]            List all keys.\n"
-        "\txa[dd][c]   <KEY> Add and item at KEY from the X selection buffers\n"
-        "\txp[rint][c] <KEY> Print the data at KEY to an X selection buffer.\n"
+        "\txa[dd][c]   <KEY> Add and item at KEY from an X selection buffers\n"
+        "\txp[rint][c] <KEY> Insert the data at KEY an the X selection buffer.\n"
         "\n"
-        "For xadd and xprint, the option trailing 'c' specifies the CLIPBOARD\n"
-        "selection buffer should be used.  Otherwise, PRIMARY is used.\n"
+        "For xadd and xprint, the optional trailing 'c' specifies the CLIPBOARD"
+        " selection\nbuffer should be used.  Otherwise, PRIMARY is used.\n"
         "\n",
         progname);
     exit(0);
