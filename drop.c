@@ -31,7 +31,7 @@
 #include <X11/Xatom.h>
 #endif
 
-enum Operation { ADD, DELETE, LIST, FULL_LIST, PRINT };
+enum Operation { USAGE, ADD, DELETE, LIST, FULL_LIST, PRINT };
 enum TransferType { CONSOLE, READLINE,
 #ifdef X11
 XSELECTION_PRIMARY, XSELECTION_CLIPBOARD
@@ -48,6 +48,12 @@ typedef struct {
 struct ExtensionMap {
     const char *ext;
     const char *type;
+};
+
+struct cli_options {
+    const char *option;
+    enum Operation operation;
+    enum TransferType transfer_type;
 };
 
 
@@ -83,6 +89,33 @@ static struct ExtensionMap extension_map[] = {
     { "dbm", "gdbm" }
 };
 
+struct cli_options opts[] = {
+ /* {"",         LIST,      CONSOLE}, */ // Explicitly checked for
+    {"a",        ADD,       READLINE},
+    {"add",      ADD,       READLINE},
+    {"d",        DELETE,    CONSOLE},
+    {"delete",   DELETE,    CONSOLE},
+    {"f",        FULL_LIST, CONSOLE},
+    {"fulllist", FULL_LIST, CONSOLE},
+    {"h",        USAGE,     CONSOLE},
+    {"-h",       USAGE,     CONSOLE},
+    {"help",     USAGE,     CONSOLE},
+    {"--help",   USAGE,     CONSOLE},
+    {"l",        LIST,      CONSOLE},
+    {"list",     LIST,      CONSOLE},
+#ifdef X11
+    {"xa",       ADD,       XSELECTION_PRIMARY},
+    {"xadd",     ADD,       XSELECTION_PRIMARY},
+    {"xac",      ADD,       XSELECTION_CLIPBOARD},
+    {"xaddc",    ADD,       XSELECTION_CLIPBOARD},
+    {"xp",       PRINT,     XSELECTION_PRIMARY},
+    {"xprint",   PRINT,     XSELECTION_PRIMARY},
+    {"xpc",      PRINT,     XSELECTION_CLIPBOARD},
+    {"xprintc",  PRINT,     XSELECTION_CLIPBOARD},
+#endif
+    {NULL,      -1,         -1}
+};
+
 static char *progname;
 
 int
@@ -106,6 +139,9 @@ main(int argc, char *argv[]) {
     free(file);
 
     switch (opt.operation) {
+        case USAGE:
+            usage();
+            break;
         case ADD:
             add(dbi, db, &opt);
             break;
@@ -132,50 +168,40 @@ main(int argc, char *argv[]) {
 }
 
 static void
-parse_options(int ct, char **op, options *options_out)
+parse_options(int argc, char **argv, options *options_out)
 {
     memset(options_out, 0, sizeof(options));
 
-    options_out->operation = PRINT;
-    options_out->transfer_type = READLINE;
-
-    if (ct == 1 || strcmp("l", op[1]) == 0 || strcmp("list", op[1]) == 0)
-    {
+    if (argc == 1) {
         options_out->operation = LIST;
-    } else if (strcmp("h", op[1]) == 0 || strcmp("-h", op[1]) == 0
-        || strcmp("help", op[1]) == 0 || strcmp("--help", op[1]) == 0) {
-        usage();
-    } else if (strcmp("f", op[1]) == 0 || strcmp("fulllist", op[1]) == 0) {
-        options_out->operation = FULL_LIST;
-    } else if (strcmp("a", op[1]) == 0 || strcmp("add", op[1]) == 0) {
-        options_out->operation = ADD;
-    } else if (strcmp("d", op[1]) == 0 || strcmp("delete", op[1]) == 0) {
-        options_out->operation = DELETE;
-#ifdef X11
-    } else if (strncmp("xa", op[1], 2) == 0 || strncmp("xadd", op[1], 4) == 0) {
-        options_out->operation = ADD;
-        if (op[1][strlen(op[1])] == 'c')
-            options_out->transfer_type = XSELECTION_CLIPBOARD;
-        else
-            options_out->transfer_type = XSELECTION_PRIMARY;
-    } else if (strncmp("xp", op[1], 2) == 0 || strncmp("xprint", op[1], 6) == 0) {
-        options_out->operation = PRINT;
-        if (op[1][strlen(op[1])] == 'c')
-            options_out->transfer_type = XSELECTION_CLIPBOARD;
-        else
-            options_out->transfer_type = XSELECTION_PRIMARY;
-#endif
-    } else if (ct == 2) {
-        options_out->operation = PRINT;
-        options_out->key = op[1];
+        return;
     }
 
-    if (options_out->operation != LIST && options_out->operation != FULL_LIST && options_out->operation != PRINT)
+    struct cli_options *o = opts;
+    while (o->option != NULL) {
+        if (strcmp(o->option, argv[1]) == 0) {
+            options_out->operation = o->operation;
+            options_out->transfer_type = o->transfer_type;
+            break;
+        }
+        ++o;
+    }
+
+    // Only a key was given, so print it.
+    if (o->option == NULL && argc == 2) {
+        options_out->operation = PRINT;
+        options_out->key = argv[1];
+    }
+
+    // Set the key field if it should be there.
+    if (options_out->operation != LIST
+    &&  options_out->operation != FULL_LIST
+    &&  options_out->operation != PRINT)
     {
-        if (ct != 3) usage();
-        options_out->key = op[2];
+        if (argc != 3) // The key is missing. Print usage message.
+            options_out->operation = USAGE;
+        options_out->key = argv[2];
     }
-
 }
 
 #ifndef _POSIX_PATH_MAX
